@@ -6,7 +6,8 @@ import aiohttp
 import voluptuous as vol
 
 from homeassistant.components import websocket_api
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,35 +69,35 @@ async def handle_spotify_request(
     }
 
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.request(
-                method,
-                url,
-                headers=headers,
-                json=body if body else None,
-                params=params,
-            ) as resp:
-                if resp.status == 204:
-                    # No content (e.g. play/pause/skip responses)
-                    connection.send_result(msg["id"], {})
-                    return
-                if resp.status == 401:
-                    connection.send_error(
-                        msg["id"],
-                        "token_expired",
-                        "Spotify token expired. Please re-authenticate in Home Assistant.",
-                    )
-                    return
-                if resp.status >= 400:
-                    error_body = await resp.text()
-                    connection.send_error(
-                        msg["id"],
-                        f"spotify_error_{resp.status}",
-                        error_body,
-                    )
-                    return
-                data = await resp.json()
-                connection.send_result(msg["id"], data)
+        session = async_get_clientsession(hass)
+        async with session.request(
+            method,
+            url,
+            headers=headers,
+            json=body if body else None,
+            params=params,
+        ) as resp:
+            if resp.status == 204:
+                # No content (e.g. play/pause/skip responses)
+                connection.send_result(msg["id"], {})
+                return
+            if resp.status == 401:
+                connection.send_error(
+                    msg["id"],
+                    "token_expired",
+                    "Spotify token expired. Please re-authenticate in Home Assistant.",
+                )
+                return
+            if resp.status >= 400:
+                error_body = await resp.text()
+                connection.send_error(
+                    msg["id"],
+                    f"spotify_error_{resp.status}",
+                    error_body,
+                )
+                return
+            data = await resp.json()
+            connection.send_result(msg["id"], data)
     except aiohttp.ClientError as err:
         _LOGGER.error("Error calling Spotify API: %s", err)
         connection.send_error(msg["id"], "request_failed", str(err))

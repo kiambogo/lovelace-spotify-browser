@@ -1,7 +1,5 @@
 // Home Assistant types
 export interface HassEntityAttributes {
-  access_token?: string;
-  media_content_id?: string;
   friendly_name?: string;
   [key: string]: unknown;
 }
