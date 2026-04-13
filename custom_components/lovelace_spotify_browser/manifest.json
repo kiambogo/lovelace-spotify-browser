@@ -1,0 +1,10 @@
+{
+  "domain": "lovelace_spotify_browser",
+  "name": "Lovelace Spotify Browser",
+  "version": "0.1.0",
+  "dependencies": ["spotify"],
+  "codeowners": ["@kiambogo"],
+  "iot_class": "cloud_polling",
+  "documentation": "https://github.com/kiambogo/lovelace-spotify-browser",
+  "requirements": []
+}

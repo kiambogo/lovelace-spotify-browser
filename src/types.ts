@@ -15,11 +15,12 @@ export interface HassEntity {
 export interface HomeAssistant {
   states: Record<string, HassEntity>;
   themes?: Record<string, unknown>;
+  callWS<T>(msg: Record<string, unknown>): Promise<T>;
 }
 
 // Card config
 export interface SpotifyBrowserCardConfig {
-  spotify_entity: string;
+  spotify_entity?: string;
   default_device?: string;
   height?: number;
 }

@@ -1,24 +1,18 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import type {
-  HomeAssistant,
-  SpotifyPlaylist,
-  SpotifyTrack,
-  BrowseTab,
-} from '../types.js';
-import * as api from '../spotify-api.js';
+import type { BrowseTab } from '../types.js';
+import { SpotifyApi } from '../spotify-api.js';
 
 @customElement('spotify-browse-panel')
 export class BrowsePanel extends LitElement {
-  @property({ attribute: false }) hass: HomeAssistant | null = null;
-  @property({ type: String }) spotifyEntity = '';
+  @property({ attribute: false }) api: SpotifyApi | null = null;
   @property({ type: String }) selectedDeviceId = '';
 
   @state() private _activeTab: BrowseTab = 'playlists';
-  @state() private _playlists: SpotifyPlaylist[] = [];
-  @state() private _recentTracks: SpotifyTrack[] = [];
-  @state() private _topTracks: SpotifyTrack[] = [];
-  @state() private _searchResults: { tracks: SpotifyTrack[]; playlists: SpotifyPlaylist[] } = {
+  @state() private _playlists: SpotifyApi.Playlist[] = [];
+  @state() private _recentTracks: SpotifyApi.Track[] = [];
+  @state() private _topTracks: SpotifyApi.Track[] = [];
+  @state() private _searchResults: { tracks: SpotifyApi.Track[]; playlists: SpotifyApi.Playlist[] } = {
     tracks: [],
     playlists: [],
   };
@@ -200,20 +194,20 @@ export class BrowsePanel extends LitElement {
   }
 
   private async _loadTab(tab: BrowseTab) {
-    if (!this.hass || !this.spotifyEntity || tab === 'search') return;
+    if (!this.api || tab === 'search') return;
 
     this._loading = true;
     this._error = '';
 
     try {
       if (tab === 'playlists') {
-        const resp = await api.getPlaylists(this.hass, this.spotifyEntity);
+        const resp = await this.api.getPlaylists();
         this._playlists = resp.items;
       } else if (tab === 'recently-played') {
-        const resp = await api.getRecentlyPlayed(this.hass, this.spotifyEntity);
+        const resp = await this.api.getRecentlyPlayed();
         this._recentTracks = resp.items.map((i) => i.track);
       } else if (tab === 'top-tracks') {
-        const resp = await api.getTopTracks(this.hass, this.spotifyEntity);
+        const resp = await this.api.getTopTracks();
         this._topTracks = resp.items;
       }
     } catch (err) {
@@ -244,11 +238,11 @@ export class BrowsePanel extends LitElement {
   }
 
   private async _doSearch(query: string) {
-    if (!this.hass || !this.spotifyEntity) return;
+    if (!this.api) return;
     this._loading = true;
     this._error = '';
     try {
-      const resp = await api.search(this.hass, this.spotifyEntity, query);
+      const resp = await this.api.search(query);
       this._searchResults = {
         tracks: resp.tracks?.items ?? [],
         playlists: resp.playlists?.items ?? [],
@@ -260,24 +254,18 @@ export class BrowsePanel extends LitElement {
     }
   }
 
-  private async _playPlaylist(playlist: SpotifyPlaylist) {
-    if (!this.hass) return;
+  private async _playPlaylist(playlist: SpotifyApi.Playlist) {
+    if (!this.api) return;
     try {
-      await api.play(this.hass, this.spotifyEntity, {
-        context_uri: playlist.uri,
-        device_id: this.selectedDeviceId || undefined,
-      });
+      await this.api.play(this.selectedDeviceId || undefined, playlist.uri);
       this.dispatchEvent(new CustomEvent('playback-changed', { bubbles: true, composed: true }));
     } catch (_e) { /* ignore */ }
   }
 
-  private async _playTrack(track: SpotifyTrack) {
-    if (!this.hass) return;
+  private async _playTrack(track: SpotifyApi.Track) {
+    if (!this.api) return;
     try {
-      await api.play(this.hass, this.spotifyEntity, {
-        uris: [track.uri],
-        device_id: this.selectedDeviceId || undefined,
-      });
+      await this.api.play(this.selectedDeviceId || undefined, undefined, [track.uri]);
       this.dispatchEvent(new CustomEvent('playback-changed', { bubbles: true, composed: true }));
     } catch (_e) { /* ignore */ }
   }

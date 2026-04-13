@@ -1,5 +1,6 @@
 {
   "name": "Lovelace Spotify Browser",
   "render_readme": true,
-  "filename": "lovelace-spotify-browser.js"
+  "filename": "lovelace-spotify-browser.js",
+  "homeassistant": "2024.1.0"
 }

@@ -1,13 +1,12 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import type { SpotifyPlaybackState, SpotifyDevice, HomeAssistant } from '../types.js';
-import * as api from '../spotify-api.js';
+import type { SpotifyDevice } from '../types.js';
+import { SpotifyApi } from '../spotify-api.js';
 
 @customElement('spotify-now-playing')
 export class NowPlayingPanel extends LitElement {
-  @property({ attribute: false }) hass: HomeAssistant | null = null;
-  @property({ type: String }) spotifyEntity = '';
-  @property({ attribute: false }) playbackState: SpotifyPlaybackState | null = null;
+  @property({ attribute: false }) api: SpotifyApi | null = null;
+  @property({ attribute: false }) playbackState: SpotifyApi.PlaybackState | null = null;
   @property({ attribute: false }) devices: SpotifyDevice[] = [];
   @property({ type: String }) selectedDeviceId = '';
 
@@ -245,14 +244,12 @@ export class NowPlayingPanel extends LitElement {
   }
 
   private async _onPlayPause() {
-    if (!this.hass) return;
+    if (!this.api) return;
     try {
       if (this.playbackState?.is_playing) {
-        await api.pause(this.hass, this.spotifyEntity);
+        await this.api.pause();
       } else {
-        await api.play(this.hass, this.spotifyEntity, {
-          device_id: this.selectedDeviceId || undefined,
-        });
+        await this.api.play(this.selectedDeviceId || undefined);
       }
       this.dispatchEvent(new CustomEvent('playback-changed', { bubbles: true, composed: true }));
     } catch (_e) {
@@ -261,17 +258,17 @@ export class NowPlayingPanel extends LitElement {
   }
 
   private async _onNext() {
-    if (!this.hass) return;
+    if (!this.api) return;
     try {
-      await api.next(this.hass, this.spotifyEntity);
+      await this.api.next();
       this.dispatchEvent(new CustomEvent('playback-changed', { bubbles: true, composed: true }));
     } catch (_e) { /* ignore */ }
   }
 
   private async _onPrevious() {
-    if (!this.hass) return;
+    if (!this.api) return;
     try {
-      await api.previous(this.hass, this.spotifyEntity);
+      await this.api.previous();
       this.dispatchEvent(new CustomEvent('playback-changed', { bubbles: true, composed: true }));
     } catch (_e) { /* ignore */ }
   }
@@ -283,19 +280,19 @@ export class NowPlayingPanel extends LitElement {
 
   private async _onSeekChange(e: Event) {
     this._seekDragging = false;
-    if (!this.hass || !this.playbackState?.item) return;
+    if (!this.api || !this.playbackState?.item) return;
     const positionMs = Number((e.target as HTMLInputElement).value);
     try {
-      await api.seek(this.hass, this.spotifyEntity, positionMs);
+      await this.api.seek(positionMs);
       this.dispatchEvent(new CustomEvent('playback-changed', { bubbles: true, composed: true }));
     } catch (_e) { /* ignore */ }
   }
 
   private async _onVolumeChange(e: Event) {
-    if (!this.hass) return;
+    if (!this.api) return;
     const vol = Number((e.target as HTMLInputElement).value);
     try {
-      await api.setVolume(this.hass, this.spotifyEntity, vol);
+      await this.api.setVolume(vol);
     } catch (_e) { /* ignore */ }
   }
 

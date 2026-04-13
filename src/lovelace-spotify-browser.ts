@@ -3,12 +3,10 @@ import { customElement, state } from 'lit/decorators.js';
 import type {
   HomeAssistant,
   SpotifyBrowserCardConfig,
-  SpotifyPlaybackState,
   SpotifyDevice,
   MainTab,
 } from './types.js';
-import * as api from './spotify-api.js';
-import { TokenError } from './spotify-api.js';
+import { SpotifyApi } from './spotify-api.js';
 
 // Import sub-components so they register themselves
 import './components/now-playing.js';
@@ -19,13 +17,13 @@ import './components/device-picker.js';
 export class SpotifyBrowserCard extends LitElement {
   @state() private _config: SpotifyBrowserCardConfig | null = null;
   @state() private _hass: HomeAssistant | null = null;
-  @state() private _playbackState: SpotifyPlaybackState | null = null;
+  @state() private _playbackState: SpotifyApi.PlaybackState | null = null;
   @state() private _devices: SpotifyDevice[] = [];
   @state() private _selectedDeviceId = '';
   @state() private _activeTab: MainTab = 'now-playing';
   @state() private _error = '';
-  @state() private _loading = false;
 
+  private _api: SpotifyApi | null = null;
   private _pollInterval: ReturnType<typeof setInterval> | null = null;
 
   static styles = css`
@@ -119,9 +117,6 @@ export class SpotifyBrowserCard extends LitElement {
   `;
 
   setConfig(config: SpotifyBrowserCardConfig) {
-    if (!config.spotify_entity) {
-      throw new Error('spotify_entity is required in card config');
-    }
     this._config = config;
     // Apply configured height
     const height = config.height ?? 500;
@@ -135,17 +130,21 @@ export class SpotifyBrowserCard extends LitElement {
 
   set hass(hass: HomeAssistant) {
     this._hass = hass;
+    if (!this._api) {
+      this._api = new SpotifyApi(hass);
+    } else {
+      this._api.hass = hass;
+    }
   }
 
   static getConfigElement(): HTMLElement {
-    // Minimal config editor — returns a plain element; full visual editor is out of scope
     const el = document.createElement('div');
-    el.innerHTML = `<p style="padding:8px;font-size:13px;">Edit config YAML directly. Required: <code>spotify_entity</code></p>`;
+    el.innerHTML = `<p style="padding:8px;font-size:13px;">Edit config YAML directly. No spotify_entity needed — the integration reads the token server-side.</p>`;
     return el;
   }
 
   static getStubConfig(): SpotifyBrowserCardConfig {
-    return { spotify_entity: 'media_player.spotify' };
+    return {};
   }
 
   connectedCallback() {
@@ -171,13 +170,13 @@ export class SpotifyBrowserCard extends LitElement {
   }
 
   private async _fetchPlaybackAndDevices() {
-    if (!this._hass || !this._config) return;
+    if (!this._api) return;
 
     try {
       this._error = '';
       const [playback, devicesResp] = await Promise.all([
-        api.getPlaybackState(this._hass, this._config.spotify_entity),
-        api.getDevices(this._hass, this._config.spotify_entity),
+        this._api.getCurrentPlayback(),
+        this._api.getDevices(),
       ]);
 
       this._playbackState = playback;
@@ -190,16 +189,14 @@ export class SpotifyBrowserCard extends LitElement {
         else if (devicesResp.devices.length > 0) this._selectedDeviceId = devicesResp.devices[0].id;
       }
     } catch (err) {
-      if (err instanceof TokenError) {
-        this._error = err.message;
-      } else if (err instanceof api.SpotifyApiError) {
-        if (err.status === 401) {
-          this._error = 'Spotify token expired. HA should refresh it shortly.';
-        } else {
-          this._error = `Spotify API error: ${err.message}`;
-        }
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('token_expired') || msg.includes('401')) {
+        this._error = 'Spotify token expired. Please re-authenticate in Home Assistant.';
+      } else if (msg.includes('no_spotify_entry')) {
+        this._error = 'Spotify integration not configured. Add the lovelace_spotify_browser integration to Home Assistant.';
+      } else {
+        // For transient errors keep last known state — don't show error
       }
-      // For transient network errors, keep last known state — don't show error
     }
   }
 
@@ -208,7 +205,6 @@ export class SpotifyBrowserCard extends LitElement {
   }
 
   private _onPlaybackChanged() {
-    // Trigger an immediate refresh after a user action
     setTimeout(() => this._fetchPlaybackAndDevices(), 500);
   }
 
@@ -251,8 +247,7 @@ export class SpotifyBrowserCard extends LitElement {
                   ${this._activeTab === 'now-playing'
                     ? html`
                         <spotify-now-playing
-                          .hass=${this._hass}
-                          .spotifyEntity=${this._config.spotify_entity}
+                          .api=${this._api}
                           .playbackState=${this._playbackState}
                           .devices=${this._devices}
                           .selectedDeviceId=${this._selectedDeviceId}
@@ -262,8 +257,7 @@ export class SpotifyBrowserCard extends LitElement {
                       `
                     : html`
                         <spotify-browse-panel
-                          .hass=${this._hass}
-                          .spotifyEntity=${this._config.spotify_entity}
+                          .api=${this._api}
                           .selectedDeviceId=${this._selectedDeviceId}
                           @playback-changed=${this._onPlaybackChanged}
                         ></spotify-browse-panel>
@@ -276,9 +270,6 @@ export class SpotifyBrowserCard extends LitElement {
   }
 }
 
-// Register card with Home Assistant's card registry
-// (window as any).customCards is the HA convention for registering custom cards
-// so they appear in the card picker UI
 declare global {
   interface Window {
     customCards?: Array<{
