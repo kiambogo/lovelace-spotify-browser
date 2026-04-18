@@ -9,6 +9,10 @@ import { SpotifyApi } from './spotify-api.js';
 import './components/now-playing.js';
 import './components/browse-panel.js';
 
+// Sonos/HA media_player entity IDs — transport commands go here when Spotify
+// Web API returns 403 (Restricted device) because the active device is Sonos.
+const SONOS_COORDINATOR_SENSOR = 'sensor.sonos_active_coordinator';
+
 @customElement('lovelace-spotify-browser')
 export class SpotifyBrowserCard extends LitElement {
   @state() private _config: SpotifyBrowserCardConfig | null = null;
@@ -17,6 +21,7 @@ export class SpotifyBrowserCard extends LitElement {
   @state() private _error = '';
   @state() private _pendingAlbumDrill: SpotifyApi.Album | null = null;
 
+  private _hass: HomeAssistant | null = null;
   private _api: SpotifyApi | null = null;
   private _pollInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -67,6 +72,7 @@ export class SpotifyBrowserCard extends LitElement {
   }
 
   set hass(hass: HomeAssistant) {
+    this._hass = hass;
     if (!this._api) {
       this._api = new SpotifyApi(hass);
     } else {
@@ -125,23 +131,58 @@ export class SpotifyBrowserCard extends LitElement {
     setTimeout(() => this._fetchState(), 500);
   }
 
+  // Returns the active Sonos coordinator entity ID, or null if none active.
+  private _sonosCoordinator(): string | null {
+    const state = this._hass?.states[SONOS_COORDINATOR_SENSOR]?.state;
+    return state && state !== 'unknown' && state !== 'unavailable' && state !== '' ? state : null;
+  }
+
+  // Try Spotify Web API first; if it 403s with "Restricted device", fall back
+  // to HA media_player service on the active Sonos coordinator.
+  private async _transport(
+    spotifyFn: () => Promise<unknown>,
+    haService: string
+  ) {
+    try {
+      await spotifyFn();
+      this._onPlaybackChanged();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('403') || msg.includes('Restricted')) {
+        const coordinator = this._sonosCoordinator();
+        if (coordinator && this._hass) {
+          await this._hass.callService('media_player', haService, { entity_id: coordinator });
+          this._onPlaybackChanged();
+        }
+      }
+    }
+  }
+
   private _onBrowseAlbum(e: CustomEvent) {
     this._pendingAlbumDrill = e.detail.album as SpotifyApi.Album;
     this._view = 'browse';
   }
 
   private _onMiniControl(e: CustomEvent) {
-    const action = e.detail.action;
+    this._handleTransportAction(e.detail.action);
+  }
+
+  private _onTransportAction(e: CustomEvent) {
+    this._handleTransportAction(e.detail.action);
+  }
+
+  private _handleTransportAction(action: string) {
     if (!this._api) return;
     if (action === 'play-pause') {
-      const p = this._playbackState?.is_playing
-        ? this._api.pause()
-        : this._api.play();
-      p.then(() => this._onPlaybackChanged()).catch(() => { /* ignore */ });
+      const isPlaying = this._playbackState?.is_playing;
+      this._transport(
+        () => isPlaying ? this._api!.pause() : this._api!.play(),
+        isPlaying ? 'media_pause' : 'media_play'
+      );
     } else if (action === 'next') {
-      this._api.next().then(() => this._onPlaybackChanged()).catch(() => { /* ignore */ });
+      this._transport(() => this._api!.next(), 'media_next_track');
     } else if (action === 'prev') {
-      this._api.previous().then(() => this._onPlaybackChanged()).catch(() => { /* ignore */ });
+      this._transport(() => this._api!.previous(), 'media_previous_track');
     }
   }
 
@@ -171,6 +212,7 @@ export class SpotifyBrowserCard extends LitElement {
                       .api=${this._api}
                       .playbackState=${this._playbackState}
                       @playback-changed=${this._onPlaybackChanged}
+                      @transport-action=${this._onTransportAction}
                       @show-browse=${() => this._view = 'browse'}
                       @browse-album=${this._onBrowseAlbum}
                     ></spotify-now-playing>

@@ -14,6 +14,12 @@ export interface HomeAssistant {
   states: Record<string, HassEntity>;
   themes?: Record<string, unknown>;
   callWS<T>(msg: Record<string, unknown>): Promise<T>;
+  callService(
+    domain: string,
+    service: string,
+    serviceData?: Record<string, unknown>,
+    target?: Record<string, unknown>
+  ): Promise<void>;
 }
 
 // Card config

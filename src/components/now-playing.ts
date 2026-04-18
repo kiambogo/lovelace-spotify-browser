@@ -302,26 +302,20 @@ export class NowPlayingPanel extends LitElement {
     return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
   }
 
-  private async _onPlayPause() {
-    if (!this.api) return;
-    try {
-      if (this.playbackState?.is_playing) {
-        await this.api.pause();
-      } else {
-        await this.api.play();
-      }
-      this._emit();
-    } catch (_e) { /* parent polls */ }
+  private _onPlayPause() {
+    this._emitTransport('play-pause');
   }
 
-  private async _onNext() {
-    if (!this.api) return;
-    try { await this.api.next(); this._emit(); } catch (_e) { /* ignore */ }
+  private _onNext() {
+    this._emitTransport('next');
   }
 
-  private async _onPrevious() {
-    if (!this.api) return;
-    try { await this.api.previous(); this._emit(); } catch (_e) { /* ignore */ }
+  private _onPrevious() {
+    this._emitTransport('prev');
+  }
+
+  private _emitTransport(action: string) {
+    this.dispatchEvent(new CustomEvent('transport-action', { detail: { action }, bubbles: true, composed: true }));
   }
 
   private async _onShuffle() {
