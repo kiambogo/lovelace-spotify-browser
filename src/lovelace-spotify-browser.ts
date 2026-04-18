@@ -131,31 +131,10 @@ export class SpotifyBrowserCard extends LitElement {
     setTimeout(() => this._fetchState(), 500);
   }
 
-  // Returns the active Sonos coordinator entity ID, or null if none active.
+  // Returns the active Sonos coordinator entity ID, or null if none/unavailable.
   private _sonosCoordinator(): string | null {
-    const state = this._hass?.states[SONOS_COORDINATOR_SENSOR]?.state;
-    return state && state !== 'unknown' && state !== 'unavailable' && state !== '' ? state : null;
-  }
-
-  // Try Spotify Web API first; if it 403s with "Restricted device", fall back
-  // to HA media_player service on the active Sonos coordinator.
-  private async _transport(
-    spotifyFn: () => Promise<unknown>,
-    haService: string
-  ) {
-    try {
-      await spotifyFn();
-      this._onPlaybackChanged();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('403') || msg.includes('Restricted')) {
-        const coordinator = this._sonosCoordinator();
-        if (coordinator && this._hass) {
-          await this._hass.callService('media_player', haService, { entity_id: coordinator });
-          this._onPlaybackChanged();
-        }
-      }
-    }
+    const s = this._hass?.states[SONOS_COORDINATOR_SENSOR]?.state;
+    return s && s !== 'unknown' && s !== 'unavailable' && s !== '' ? s : null;
   }
 
   private _onBrowseAlbum(e: CustomEvent) {
@@ -172,17 +151,35 @@ export class SpotifyBrowserCard extends LitElement {
   }
 
   private _handleTransportAction(action: string) {
+    if (!this._hass) return;
+
+    // If Sonos is the active coordinator, route directly through HA media_player.
+    // Spotify Web API returns 403 for all transport commands on Sonos devices.
+    const coordinator = this._sonosCoordinator();
+    if (coordinator) {
+      const serviceMap: Record<string, string> = {
+        'play-pause': this._playbackState?.is_playing ? 'media_pause' : 'media_play',
+        'next': 'media_next_track',
+        'prev': 'media_previous_track',
+      };
+      const service = serviceMap[action];
+      if (service) {
+        this._hass.callService('media_player', service, { entity_id: coordinator })
+          .then(() => this._onPlaybackChanged())
+          .catch(() => { /* ignore */ });
+      }
+      return;
+    }
+
+    // No Sonos active — use Spotify Web API directly.
     if (!this._api) return;
     if (action === 'play-pause') {
-      const isPlaying = this._playbackState?.is_playing;
-      this._transport(
-        () => isPlaying ? this._api!.pause() : this._api!.play(),
-        isPlaying ? 'media_pause' : 'media_play'
-      );
+      const p = this._playbackState?.is_playing ? this._api.pause() : this._api.play();
+      p.then(() => this._onPlaybackChanged()).catch(() => { /* ignore */ });
     } else if (action === 'next') {
-      this._transport(() => this._api!.next(), 'media_next_track');
+      this._api.next().then(() => this._onPlaybackChanged()).catch(() => { /* ignore */ });
     } else if (action === 'prev') {
-      this._transport(() => this._api!.previous(), 'media_previous_track');
+      this._api.previous().then(() => this._onPlaybackChanged()).catch(() => { /* ignore */ });
     }
   }
 
