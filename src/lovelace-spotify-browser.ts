@@ -9,9 +9,14 @@ import { SpotifyApi } from './spotify-api.js';
 import './components/now-playing.js';
 import './components/browse-panel.js';
 
-// Sonos/HA media_player entity IDs — transport commands go here when Spotify
-// Web API returns 403 (Restricted device) because the active device is Sonos.
 const SONOS_COORDINATOR_SENSOR = 'sensor.sonos_active_coordinator';
+const SONOS_ENTITIES = [
+  'media_player.kitchen',
+  'media_player.sonos_move',
+  'media_player.living_room',
+  'media_player.garage',
+  'media_player.patio',
+];
 
 @customElement('lovelace-spotify-browser')
 export class SpotifyBrowserCard extends LitElement {
@@ -131,10 +136,21 @@ export class SpotifyBrowserCard extends LitElement {
     setTimeout(() => this._fetchState(), 500);
   }
 
-  // Returns the active Sonos coordinator entity ID, or null if none/unavailable.
+  // Returns the relevant Sonos entity for transport commands.
+  // Prefers the active coordinator (playing), falls back to any paused Sonos speaker.
   private _sonosCoordinator(): string | null {
-    const s = this._hass?.states[SONOS_COORDINATOR_SENSOR]?.state;
-    return s && s !== 'unknown' && s !== 'unavailable' && s !== '' ? s : null;
+    const active = this._hass?.states[SONOS_COORDINATOR_SENSOR]?.state;
+    if (active && active !== 'unknown' && active !== 'unavailable' && active !== '') {
+      return active;
+    }
+    // Coordinator sensor is empty when paused — find first paused Sonos speaker.
+    if (this._hass) {
+      for (const entity of SONOS_ENTITIES) {
+        const state = this._hass.states[entity]?.state;
+        if (state === 'paused') return entity;
+      }
+    }
+    return null;
   }
 
   private _onBrowseAlbum(e: CustomEvent) {
