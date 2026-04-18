@@ -88,7 +88,8 @@ export class SpotifyBrowserCard extends LitElement {
   setConfig(config: SpotifyBrowserCardConfig) {
     this._config = config;
     this.style.setProperty('--spotify-card-height', `${config.height ?? 500}px`);
-    if (config.default_device) this._selectedDeviceId = config.default_device;
+    // default_device is intentionally not used — it's a HA entity ID, not a Spotify device ID.
+    // The active device is auto-detected from getDevices() on first poll.
   }
 
   set hass(hass: HomeAssistant) {

@@ -2028,7 +2028,7 @@ let $ = class extends P {
     super(...arguments), this._config = null, this._playbackState = null, this._devices = [], this._selectedDeviceId = "", this._view = "now-playing", this._error = "", this._pendingAlbumDrill = null, this._api = null, this._pollInterval = null;
   }
   setConfig(i) {
-    this._config = i, this.style.setProperty("--spotify-card-height", `${i.height ?? 500}px`), i.default_device && (this._selectedDeviceId = i.default_device);
+    this._config = i, this.style.setProperty("--spotify-card-height", `${i.height ?? 500}px`);
   }
   set hass(i) {
     this._api ? this._api.hass = i : this._api = new Wt(i);
