@@ -1,4 +1,4 @@
-import { LitElement, html, css, nothing } from 'lit';
+import { LitElement, html, css, nothing, svg } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { SpotifyDevice } from '../types.js';
 import { SpotifyApi } from '../spotify-api.js';
@@ -10,237 +10,370 @@ export class NowPlayingPanel extends LitElement {
   @property({ attribute: false }) devices: SpotifyDevice[] = [];
   @property({ type: String }) selectedDeviceId = '';
 
-  @state() private _heartActive = false;
   @state() private _seekDragging = false;
   @state() private _seekValue = 0;
+  @state() private _shuffle = false;
+  @state() private _repeat: 'off' | 'context' | 'track' = 'off';
+  @state() private _showDevices = false;
 
   static styles = css`
     :host {
+      display: block;
+      position: relative;
+      background: #0a0a0a;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    /* Blurred artwork background */
+    .artwork-bg {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      filter: blur(60px) saturate(1.8) brightness(0.22);
+      transform: scale(1.3);
+      pointer-events: none;
+      transition: background-image 0.6s ease;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      padding: 16px;
+      align-items: center;
+      padding: 20px 20px 16px;
+      gap: 0;
     }
 
-    .album-art {
+    /* Header row */
+    .header {
       width: 100%;
-      max-width: 280px;
-      aspect-ratio: 1;
-      margin: 0 auto;
-      border-radius: 8px;
-      overflow: hidden;
-      background: var(--divider-color, #e0e0e0);
-      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
     }
 
-    .album-art img {
+    .header-label {
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.3);
+      font-weight: 500;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: rgba(255,255,255,0.5);
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      padding: 5px;
+      transition: color 0.18s, background 0.18s;
+    }
+    .icon-btn:hover {
+      color: #fff;
+      background: rgba(255,255,255,0.08);
+    }
+
+    /* Artwork */
+    .artwork-wrap {
+      width: 200px;
+      height: 200px;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.06) inset;
+      flex-shrink: 0;
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .artwork-wrap:hover {
+      transform: scale(1.015);
+    }
+    .artwork-wrap img {
       width: 100%;
       height: 100%;
       object-fit: cover;
       display: block;
     }
-
-    .album-art-placeholder {
+    .artwork-placeholder {
       width: 100%;
       height: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 64px;
+      background: rgba(255,255,255,0.06);
+      font-size: 56px;
     }
 
+    /* Track info */
     .track-info {
+      margin-top: 18px;
       text-align: center;
+      width: 100%;
     }
-
     .track-name {
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 600;
-      color: var(--primary-text-color);
+      color: #fff;
       margin: 0 0 4px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      letter-spacing: -0.01em;
     }
-
     .track-artist {
-      font-size: 14px;
-      color: var(--secondary-text-color);
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
       margin: 0 0 2px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-
     .track-album {
       font-size: 12px;
-      color: var(--secondary-text-color);
+      color: rgba(255,255,255,0.3);
       margin: 0;
-      opacity: 0.7;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+    .track-album:hover {
+      color: rgba(255,255,255,0.7);
+    }
+
+    .no-track {
+      text-align: center;
+      color: rgba(255,255,255,0.4);
+      font-style: italic;
+      padding: 40px 0;
+      font-size: 14px;
+    }
+
+    /* Progress */
+    .progress-section {
+      width: 100%;
+      margin-top: 16px;
+    }
+    .progress-bar-wrap {
+      position: relative;
+      height: 3px;
+      background: rgba(255,255,255,0.12);
+      border-radius: 2px;
+      cursor: pointer;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #1DB954;
+      border-radius: 2px;
+      position: relative;
+      pointer-events: none;
+    }
+    .progress-thumb {
+      position: absolute;
+      right: -5px;
+      top: 50%;
+      transform: translateY(-50%) scale(0);
+      width: 10px;
+      height: 10px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.15s ease;
+    }
+    .progress-bar-wrap:hover .progress-thumb {
+      transform: translateY(-50%) scale(1);
+    }
+    .progress-times {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 5px;
+      font-size: 10px;
+      color: rgba(255,255,255,0.3);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      margin-top: 14px;
+      width: 100%;
+    }
+
+    .ctrl-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: rgba(255,255,255,0.5);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.18s, transform 0.18s, background 0.18s;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .ctrl-btn:hover { color: #fff; }
+    .ctrl-btn:active { transform: scale(0.9); }
+
+    .ctrl-btn.active {
+      color: #1DB954;
+    }
+    .ctrl-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -3px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 3px;
+      height: 3px;
+      background: #1DB954;
+      border-radius: 50%;
+    }
+
+    .ctrl-sm { width: 36px; height: 36px; padding: 8px; }
+    .ctrl-md { width: 42px; height: 42px; padding: 9px; }
+    .ctrl-play {
+      width: 52px;
+      height: 52px;
+      background: #1DB954;
+      color: #000 !important;
+      border-radius: 50%;
+      padding: 14px;
+      box-shadow: 0 4px 20px rgba(29,185,84,0.35);
+    }
+    .ctrl-play:hover {
+      background: #1ed760 !important;
+      transform: scale(1.05);
+      box-shadow: 0 6px 28px rgba(29,185,84,0.5);
+    }
+
+    /* Volume row */
+    .volume-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      margin-top: 12px;
+    }
+    .vol-icon {
+      color: rgba(255,255,255,0.4);
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    .volume-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      flex: 1;
+      height: 3px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.15);
+      outline: none;
+      cursor: pointer;
+    }
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+    }
+    .volume-slider::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      border: none;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    /* Device picker */
+    .device-row {
+      width: 100%;
+      margin-top: 10px;
+      position: relative;
+    }
+    .device-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      color: rgba(255,255,255,0.6);
+      font-size: 12px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .device-btn:hover {
+      background: rgba(255,255,255,0.09);
+      color: #fff;
+    }
+    .device-btn-icon {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+    .device-btn-label {
+      flex: 1;
+      text-align: left;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .no-track {
-      text-align: center;
-      color: var(--secondary-text-color);
-      font-style: italic;
-      padding: 32px 0;
+    .device-menu {
+      position: absolute;
+      bottom: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: #1e1e1e;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      overflow: hidden;
+      z-index: 10;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
     }
-
-    .progress-section {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .progress-bar {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 100%;
-      height: 4px;
-      border-radius: 2px;
-      background: var(--divider-color, #e0e0e0);
-      outline: none;
-      cursor: pointer;
-    }
-
-    .progress-bar::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: var(--primary-color, #03a9f4);
-      cursor: pointer;
-    }
-
-    .progress-bar::-moz-range-thumb {
-      width: 14px;
-      height: 14px;
-      border: none;
-      border-radius: 50%;
-      background: var(--primary-color, #03a9f4);
-      cursor: pointer;
-    }
-
-    .progress-bar::-webkit-slider-runnable-track {
-      background: linear-gradient(
-        to right,
-        var(--primary-color, #03a9f4) var(--progress-pct, 0%),
-        var(--divider-color, #e0e0e0) var(--progress-pct, 0%)
-      );
-      border-radius: 2px;
-      height: 4px;
-    }
-
-    .progress-times {
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-      color: var(--secondary-text-color);
-    }
-
-    .transport {
+    .device-option {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 16px;
-    }
-
-    .transport button {
-      background: none;
-      border: none;
+      gap: 10px;
+      padding: 10px 14px;
       cursor: pointer;
-      color: var(--primary-text-color);
-      font-size: 20px;
-      padding: 8px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.7);
+      transition: background 0.12s;
+    }
+    .device-option:hover { background: rgba(255,255,255,0.07); }
+    .device-option.active { color: #1DB954; }
+    .device-option-dot {
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.15s;
-    }
-
-    .transport button:hover {
-      background: var(--divider-color, #e0e0e0);
-    }
-
-    .transport button.play-pause {
-      font-size: 28px;
-      background: var(--primary-color, #03a9f4);
-      color: white;
-      padding: 12px;
-    }
-
-    .transport button.play-pause:hover {
-      opacity: 0.85;
-      background: var(--primary-color, #03a9f4);
-    }
-
-    .heart-btn {
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-size: 20px;
-      padding: 8px;
-      color: var(--secondary-text-color);
-      transition: color 0.15s;
-    }
-
-    .heart-btn.active {
-      color: #e91e63;
-    }
-
-    .volume-section {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .volume-icon {
-      font-size: 16px;
-      color: var(--secondary-text-color);
+      background: #1DB954;
       flex-shrink: 0;
+      opacity: 0;
     }
-
-    .volume-slider {
-      -webkit-appearance: none;
-      appearance: none;
-      flex: 1;
-      height: 4px;
-      border-radius: 2px;
-      background: var(--divider-color, #e0e0e0);
-      outline: none;
-      cursor: pointer;
-    }
-
-    .volume-slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: var(--primary-color, #03a9f4);
-      cursor: pointer;
-    }
-
-    .volume-slider::-moz-range-thumb {
-      width: 14px;
-      height: 14px;
-      border: none;
-      border-radius: 50%;
-      background: var(--primary-color, #03a9f4);
-      cursor: pointer;
-    }
+    .device-option.active .device-option-dot { opacity: 1; }
   `;
 
-  private _formatMs(ms: number): string {
-    const total = Math.floor(ms / 1000);
-    const min = Math.floor(total / 60);
-    const sec = total % 60;
-    return `${min}:${sec.toString().padStart(2, '0')}`;
+  private _fmtMs(ms: number): string {
+    const s = Math.floor(ms / 1000);
+    return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
   }
 
   private async _onPlayPause() {
@@ -251,148 +384,201 @@ export class NowPlayingPanel extends LitElement {
       } else {
         await this.api.play(this.selectedDeviceId || undefined);
       }
-      this.dispatchEvent(new CustomEvent('playback-changed', { bubbles: true, composed: true }));
-    } catch (_e) {
-      // silently ignore — parent polls and will update state
-    }
+      this._emit();
+    } catch (_e) { /* parent polls */ }
   }
 
   private async _onNext() {
     if (!this.api) return;
-    try {
-      await this.api.next();
-      this.dispatchEvent(new CustomEvent('playback-changed', { bubbles: true, composed: true }));
-    } catch (_e) { /* ignore */ }
+    try { await this.api.next(); this._emit(); } catch (_e) { /* ignore */ }
   }
 
   private async _onPrevious() {
     if (!this.api) return;
-    try {
-      await this.api.previous();
-      this.dispatchEvent(new CustomEvent('playback-changed', { bubbles: true, composed: true }));
-    } catch (_e) { /* ignore */ }
+    try { await this.api.previous(); this._emit(); } catch (_e) { /* ignore */ }
   }
 
-  private _onSeekInput(e: Event) {
-    this._seekDragging = true;
-    this._seekValue = Number((e.target as HTMLInputElement).value);
+  private async _onShuffle() {
+    if (!this.api) return;
+    this._shuffle = !this._shuffle;
+    try { await this.api.setShuffle(this._shuffle, this.selectedDeviceId || undefined); } catch (_e) { /* ignore */ }
   }
 
-  private async _onSeekChange(e: Event) {
-    this._seekDragging = false;
-    if (!this.api || !this.playbackState?.item) return;
-    const positionMs = Number((e.target as HTMLInputElement).value);
-    try {
-      await this.api.seek(positionMs);
-      this.dispatchEvent(new CustomEvent('playback-changed', { bubbles: true, composed: true }));
-    } catch (_e) { /* ignore */ }
+  private async _onRepeat() {
+    if (!this.api) return;
+    const states: Array<'off' | 'context' | 'track'> = ['off', 'context', 'track'];
+    const idx = states.indexOf(this._repeat);
+    this._repeat = states[(idx + 1) % 3];
+    try { await this.api.setRepeat(this._repeat, this.selectedDeviceId || undefined); } catch (_e) { /* ignore */ }
+  }
+
+  private _onSeekClick(e: MouseEvent) {
+    const pb = this.playbackState;
+    if (!this.api || !pb?.item) return;
+    const bar = (e.currentTarget as HTMLElement);
+    const rect = bar.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    const posMs = Math.round(ratio * pb.item.duration_ms);
+    this.api.seek(posMs).then(() => this._emit()).catch(() => { /* ignore */ });
   }
 
   private async _onVolumeChange(e: Event) {
     if (!this.api) return;
-    const vol = Number((e.target as HTMLInputElement).value);
-    try {
-      await this.api.setVolume(vol);
-    } catch (_e) { /* ignore */ }
+    try { await this.api.setVolume(Number((e.target as HTMLInputElement).value)); } catch (_e) { /* ignore */ }
   }
 
-  private _onDeviceSelected(e: CustomEvent) {
-    this.dispatchEvent(
-      new CustomEvent('device-selected', {
-        detail: e.detail,
-        bubbles: true,
-        composed: true,
-      })
-    );
+  private _onDeviceSelect(deviceId: string) {
+    this._showDevices = false;
+    this.dispatchEvent(new CustomEvent('device-selected', { detail: { deviceId }, bubbles: true, composed: true }));
   }
 
-  private _toggleHeart() {
-    this._heartActive = !this._heartActive;
+  private _onAlbumClick() {
+    const album = this.playbackState?.item?.album;
+    if (!album) return;
+    this.dispatchEvent(new CustomEvent('browse-album', { detail: { album }, bubbles: true, composed: true }));
+  }
+
+  private _emit() {
+    this.dispatchEvent(new CustomEvent('playback-changed', { bubbles: true, composed: true }));
+  }
+
+  updated(changedProps: Map<string, unknown>) {
+    if (changedProps.has('playbackState') && this.playbackState) {
+      this._shuffle = this.playbackState.shuffle_state ?? false;
+      this._repeat = this.playbackState.repeat_state ?? 'off';
+    }
   }
 
   render() {
     const pb = this.playbackState;
     const track = pb?.item ?? null;
     const isPlaying = pb?.is_playing ?? false;
-    const progressMs = (!this._seekDragging && pb?.progress_ms != null)
-      ? pb.progress_ms
-      : this._seekDragging ? this._seekValue : 0;
+    const progressMs = this._seekDragging ? this._seekValue : (pb?.progress_ms ?? 0);
     const durationMs = track?.duration_ms ?? 0;
-    const progressPct = durationMs > 0 ? (progressMs / durationMs) * 100 : 0;
+    const pct = durationMs > 0 ? Math.min(100, (progressMs / durationMs) * 100) : 0;
     const volume = pb?.device?.volume_percent ?? 50;
-
     const imageUrl = track?.album?.images?.[0]?.url ?? null;
+    const artistNames = track?.artists?.map(a => a.name).join(', ') ?? '';
+
+    const activeDevice = this.devices.find(d => d.id === this.selectedDeviceId) ?? this.devices.find(d => d.is_active);
 
     return html`
-      <div class="album-art">
-        ${imageUrl
-          ? html`<img src=${imageUrl} alt="Album art" />`
-          : html`<div class="album-art-placeholder">🎵</div>`}
-      </div>
+      ${imageUrl ? html`<div class="artwork-bg" style="background-image: url(${imageUrl})"></div>` : nothing}
 
-      ${track
-        ? html`
-            <div class="track-info">
-              <p class="track-name">${track.name}</p>
-              <p class="track-artist">${track.artists.map((a) => a.name).join(', ')}</p>
-              <p class="track-album">${track.album.name}</p>
-            </div>
+      <div class="content">
+        <div class="header">
+          <span class="header-label">Now Playing</span>
+          <button class="icon-btn" @click=${() => this.dispatchEvent(new CustomEvent('show-browse', { bubbles: true, composed: true }))} title="Browse">
+            ${svgList}
+          </button>
+        </div>
 
-            <div class="progress-section">
-              <input
-                type="range"
-                class="progress-bar"
-                min="0"
-                max=${durationMs}
-                .value=${String(progressMs)}
-                style="--progress-pct: ${progressPct.toFixed(1)}%"
-                @input=${this._onSeekInput}
-                @change=${this._onSeekChange}
-              />
-              <div class="progress-times">
-                <span>${this._formatMs(progressMs)}</span>
-                <span>${this._formatMs(durationMs)}</span>
+        <div class="artwork-wrap">
+          ${imageUrl
+            ? html`<img src=${imageUrl} alt="Album art" />`
+            : html`<div class="artwork-placeholder">🎵</div>`}
+        </div>
+
+        ${track ? html`
+          <div class="track-info">
+            <div class="track-name">${track.name}</div>
+            <div class="track-artist">${artistNames}</div>
+            <div class="track-album" @click=${this._onAlbumClick} title="Browse album">${track.album.name}</div>
+          </div>
+
+          <div class="progress-section">
+            <div class="progress-bar-wrap" @click=${this._onSeekClick}>
+              <div class="progress-fill" style="width: ${pct.toFixed(2)}%">
+                <div class="progress-thumb"></div>
               </div>
             </div>
-          `
-        : html`<div class="no-track">No active Spotify session</div>`}
+            <div class="progress-times">
+              <span>${this._fmtMs(progressMs)}</span>
+              <span>${this._fmtMs(durationMs)}</span>
+            </div>
+          </div>
+        ` : html`<div class="no-track">No active Spotify session</div>`}
 
-      <div class="transport">
-        <button @click=${this._onPrevious} title="Previous">⏮</button>
-        <button class="play-pause" @click=${this._onPlayPause} title=${isPlaying ? 'Pause' : 'Play'}>
-          ${isPlaying ? '⏸' : '▶'}
-        </button>
-        <button @click=${this._onNext} title="Next">⏭</button>
-        <button
-          class="heart-btn ${this._heartActive ? 'active' : ''}"
-          @click=${this._toggleHeart}
-          title="Save track"
-        >♥</button>
+        <div class="controls">
+          <button
+            class="ctrl-btn ctrl-sm ${this._shuffle ? 'active' : ''}"
+            @click=${this._onShuffle}
+            title="Shuffle"
+          >${svgShuffle}</button>
+
+          <button class="ctrl-btn ctrl-md" @click=${this._onPrevious} title="Previous">
+            ${svgPrev}
+          </button>
+
+          <button class="ctrl-btn ctrl-play" @click=${this._onPlayPause} title=${isPlaying ? 'Pause' : 'Play'}>
+            ${isPlaying ? svgPause : svgPlay}
+          </button>
+
+          <button class="ctrl-btn ctrl-md" @click=${this._onNext} title="Next">
+            ${svgNext}
+          </button>
+
+          <button
+            class="ctrl-btn ctrl-sm ${this._repeat !== 'off' ? 'active' : ''}"
+            @click=${this._onRepeat}
+            title=${this._repeat === 'off' ? 'Repeat off' : this._repeat === 'context' ? 'Repeat all' : 'Repeat one'}
+          >${this._repeat === 'track' ? svgRepeatOne : svgRepeat}</button>
+        </div>
+
+        <div class="volume-row">
+          <span class="vol-icon">${svgVolLow}</span>
+          <input
+            type="range"
+            class="volume-slider"
+            min="0"
+            max="100"
+            .value=${String(volume)}
+            @change=${this._onVolumeChange}
+          />
+          <span class="vol-icon">${svgVolHigh}</span>
+        </div>
+
+        ${this.devices.length > 0 ? html`
+          <div class="device-row">
+            <button class="device-btn" @click=${() => this._showDevices = !this._showDevices}>
+              <span class="device-btn-icon">${svgSpeaker}</span>
+              <span class="device-btn-label">${activeDevice?.name ?? 'No device'}</span>
+              ${svgChevron}
+            </button>
+            ${this._showDevices ? html`
+              <div class="device-menu">
+                ${this.devices.map(d => html`
+                  <div
+                    class="device-option ${d.id === this.selectedDeviceId || d.is_active ? 'active' : ''}"
+                    @click=${() => this._onDeviceSelect(d.id)}
+                  >
+                    <div class="device-option-dot"></div>
+                    ${d.name}
+                  </div>
+                `)}
+              </div>
+            ` : nothing}
+          </div>
+        ` : nothing}
       </div>
-
-      <div class="volume-section">
-        <span class="volume-icon">🔈</span>
-        <input
-          type="range"
-          class="volume-slider"
-          min="0"
-          max="100"
-          .value=${String(volume)}
-          @change=${this._onVolumeChange}
-        />
-        <span class="volume-icon">🔊</span>
-      </div>
-
-      <spotify-device-picker
-        .devices=${this.devices}
-        .selectedDeviceId=${this.selectedDeviceId}
-        @device-selected=${this._onDeviceSelected}
-      ></spotify-device-picker>
     `;
   }
 }
 
-// keep nothing import used
+// ── SVG icons ──────────────────────────────────────────────────────────────
+const svgPlay = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M8 5v14l11-7z"/></svg>`;
+const svgPause = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
+const svgPrev = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>`;
+const svgNext = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 4V8zM16 6h2v12h-2z"/></svg>`;
+const svgShuffle = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M10.59 9.17 5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>`;
+const svgRepeat = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>`;
+const svgRepeatOne = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4zm-4-2V9h-1l-2 1v1h1.5v6H13z"/></svg>`;
+const svgList = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>`;
+const svgSpeaker = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M17 2H7L4 8v14h16V8l-3-6zm1 18H6V8.58L8.29 4h7.42L18 8.58V20z"/></svg>`;
+const svgChevron = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12" style="flex-shrink:0;color:rgba(255,255,255,0.4)"><path d="M7 10l5 5 5-5z"/></svg>`;
+const svgVolLow = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M18.5 12A4.5 4.5 0 0 0 16 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/></svg>`;
+const svgVolHigh = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>`;
+
 void nothing;
 
 declare global {

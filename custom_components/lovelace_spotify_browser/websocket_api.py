@@ -38,7 +38,7 @@ def _get_spotify_token(hass: HomeAssistant) -> str | None:
         vol.Required("method"): str,
         vol.Required("endpoint"): str,
         vol.Optional("body"): dict,
-        vol.Optional("params"): dict,
+        vol.Optional("params"): {str: vol.Any(str, int, float, bool)},
     }
 )
 @websocket_api.async_response
@@ -48,6 +48,7 @@ async def handle_spotify_request(
     msg: dict[str, Any],
 ) -> None:
     """Handle a proxied Spotify API request."""
+    _LOGGER.debug("handle_spotify_request called: %s %s", msg.get("method"), msg.get("endpoint"))
     token = _get_spotify_token(hass)
     if not token:
         connection.send_error(
@@ -68,6 +69,7 @@ async def handle_spotify_request(
         "Content-Type": "application/json",
     }
 
+    _LOGGER.debug("Spotify request: %s %s params=%s", method, url, params)
     try:
         session = async_get_clientsession(hass)
         async with session.request(
@@ -77,6 +79,7 @@ async def handle_spotify_request(
             json=body if body else None,
             params=params,
         ) as resp:
+            _LOGGER.debug("Spotify response: %s %s → %s", method, url, resp.status)
             if resp.status == 204:
                 # No content (e.g. play/pause/skip responses)
                 connection.send_result(msg["id"], {})

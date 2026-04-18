@@ -38,6 +38,14 @@ export class SpotifyApi {
     return this.request<SpotifyApi.TopTracksResponse>('GET', '/me/top/tracks', undefined, { limit: 50 });
   }
 
+  async getAlbum(albumId: string) {
+    return this.request<SpotifyApi.Album>('GET', `/albums/${albumId}`);
+  }
+
+  async getAlbumTracks(albumId: string) {
+    return this.request<SpotifyApi.AlbumTracksResponse>('GET', `/albums/${albumId}/tracks`, undefined, { limit: 50 });
+  }
+
   async search(query: string) {
     return this.request<SpotifyApi.SearchResponse>('GET', '/search', undefined, {
       q: query,
@@ -54,12 +62,26 @@ export class SpotifyApi {
     return this.request<SpotifyApi.PlaybackState | null>('GET', '/me/player');
   }
 
-  async play(deviceId?: string, contextUri?: string, uris?: string[]) {
-    const params = deviceId ? { device_id: deviceId } : undefined;
+  async play(deviceId?: string, contextUri?: string, uris?: string[], offsetUri?: string) {
+    const params: Record<string, string | number> = {};
+    if (deviceId) params['device_id'] = deviceId;
     const body: Record<string, unknown> = {};
     if (contextUri) body['context_uri'] = contextUri;
     if (uris) body['uris'] = uris;
-    return this.request('PUT', '/me/player/play', Object.keys(body).length ? body : undefined, params);
+    if (offsetUri) body['offset'] = { uri: offsetUri };
+    return this.request('PUT', '/me/player/play', Object.keys(body).length ? body : undefined, Object.keys(params).length ? params : undefined);
+  }
+
+  async setShuffle(state: boolean, deviceId?: string) {
+    const params: Record<string, string | number> = { state: state ? 'true' : 'false' };
+    if (deviceId) params['device_id'] = deviceId;
+    return this.request('PUT', '/me/player/shuffle', undefined, params);
+  }
+
+  async setRepeat(state: 'track' | 'context' | 'off', deviceId?: string) {
+    const params: Record<string, string | number> = { state };
+    if (deviceId) params['device_id'] = deviceId;
+    return this.request('PUT', '/me/player/repeat', undefined, params);
   }
 
   async pause() {
@@ -85,16 +107,16 @@ export class SpotifyApi {
 
 export namespace SpotifyApi {
   export interface PlaylistsResponse {
-    items: Playlist[];
+    items: (Playlist | null)[];
     total: number;
   }
   export interface Playlist {
     id: string;
     name: string;
     uri: string;
-    images: Image[];
-    tracks: { total: number };
-    owner: { display_name: string };
+    images: Image[] | null;
+    tracks: { total: number } | null;
+    owner: { display_name: string } | null;
   }
   export interface RecentlyPlayedResponse {
     items: Array<{ track: Track; played_at: string }>;
@@ -105,6 +127,7 @@ export namespace SpotifyApi {
   export interface SearchResponse {
     tracks?: { items: Track[] };
     playlists?: { items: Playlist[] };
+    albums?: { items: Album[] };
   }
   export interface DevicesResponse {
     devices: Device[];
@@ -121,14 +144,37 @@ export namespace SpotifyApi {
     progress_ms: number;
     item: Track | null;
     device: Device;
+    shuffle_state: boolean;
+    repeat_state: 'track' | 'context' | 'off';
+    context?: { uri: string; type: string } | null;
   }
   export interface Track {
     id: string;
     name: string;
     uri: string;
     duration_ms: number;
-    artists: Array<{ name: string }>;
-    album: { name: string; images: Image[] };
+    artists: Array<{ id: string; name: string; uri: string }>;
+    album: Album;
+  }
+  export interface Album {
+    id: string;
+    name: string;
+    uri: string;
+    images: Image[];
+    artists: Array<{ id: string; name: string; uri: string }>;
+    tracks?: AlbumTracksResponse;
+  }
+  export interface AlbumTracksResponse {
+    items: AlbumTrack[];
+    total: number;
+  }
+  export interface AlbumTrack {
+    id: string;
+    name: string;
+    uri: string;
+    duration_ms: number;
+    track_number: number;
+    artists: Array<{ id: string; name: string; uri: string }>;
   }
   export interface Image {
     url: string;
