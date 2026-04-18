@@ -10,7 +10,6 @@ type DrillTarget =
 @customElement('spotify-browse-panel')
 export class BrowsePanel extends LitElement {
   @property({ attribute: false }) api: SpotifyApi | null = null;
-  @property({ type: String }) selectedDeviceId = '';
   @property({ attribute: false }) initialAlbum: SpotifyApi.Album | null = null;
 
   @state() private _activeTab: BrowseTab = 'playlists';
@@ -431,8 +430,8 @@ export class BrowsePanel extends LitElement {
   private async _playPlaylist(playlist: SpotifyApi.Playlist, shuffle = false) {
     if (!this.api) return;
     try {
-      if (shuffle) await this.api.setShuffle(true, this.selectedDeviceId || undefined);
-      await this.api.play(this.selectedDeviceId || undefined, playlist.uri);
+      if (shuffle) await this.api.setShuffle(true);
+      await this.api.play(playlist.uri);
       this._emit();
     } catch (_e) { /* ignore */ }
   }
@@ -440,7 +439,7 @@ export class BrowsePanel extends LitElement {
   private async _playTrack(track: SpotifyApi.Track) {
     if (!this.api) return;
     try {
-      await this.api.play(this.selectedDeviceId || undefined, undefined, [track.uri]);
+      await this.api.play(undefined, [track.uri]);
       this._emit();
     } catch (_e) { /* ignore */ }
   }
@@ -448,8 +447,8 @@ export class BrowsePanel extends LitElement {
   private async _playAlbum(album: SpotifyApi.Album, shuffle = false, trackUri?: string) {
     if (!this.api) return;
     try {
-      if (shuffle) await this.api.setShuffle(true, this.selectedDeviceId || undefined);
-      await this.api.play(this.selectedDeviceId || undefined, album.uri, undefined, trackUri);
+      if (shuffle) await this.api.setShuffle(true);
+      await this.api.play(album.uri, undefined, trackUri);
       this._emit();
     } catch (_e) { /* ignore */ }
   }
@@ -458,8 +457,8 @@ export class BrowsePanel extends LitElement {
     const drill = this._drill;
     if (!this.api || !drill || drill.kind !== 'album') return;
     try {
-      await this.api.setShuffle(false, this.selectedDeviceId || undefined);
-      await this.api.play(this.selectedDeviceId || undefined, drill.album.uri, undefined, trackUri);
+      await this.api.setShuffle(false);
+      await this.api.play(drill.album.uri, undefined, trackUri);
       this._emit();
     } catch (_e) { /* ignore */ }
   }

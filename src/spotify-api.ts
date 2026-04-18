@@ -62,26 +62,20 @@ export class SpotifyApi {
     return this.request<SpotifyApi.PlaybackState | null>('GET', '/me/player');
   }
 
-  async play(deviceId?: string, contextUri?: string, uris?: string[], offsetUri?: string) {
-    const params: Record<string, string | number> = {};
-    if (deviceId) params['device_id'] = deviceId;
+  async play(contextUri?: string, uris?: string[], offsetUri?: string) {
     const body: Record<string, unknown> = {};
     if (contextUri) body['context_uri'] = contextUri;
     if (uris) body['uris'] = uris;
     if (offsetUri) body['offset'] = { uri: offsetUri };
-    return this.request('PUT', '/me/player/play', Object.keys(body).length ? body : undefined, Object.keys(params).length ? params : undefined);
+    return this.request('PUT', '/me/player/play', Object.keys(body).length ? body : undefined);
   }
 
-  async setShuffle(state: boolean, deviceId?: string) {
-    const params: Record<string, string | number> = { state: state ? 'true' : 'false' };
-    if (deviceId) params['device_id'] = deviceId;
-    return this.request('PUT', '/me/player/shuffle', undefined, params);
+  async setShuffle(state: boolean) {
+    return this.request('PUT', '/me/player/shuffle', undefined, { state: state ? 'true' : 'false' });
   }
 
-  async setRepeat(state: 'track' | 'context' | 'off', deviceId?: string) {
-    const params: Record<string, string | number> = { state };
-    if (deviceId) params['device_id'] = deviceId;
-    return this.request('PUT', '/me/player/repeat', undefined, params);
+  async setRepeat(state: 'track' | 'context' | 'off') {
+    return this.request('PUT', '/me/player/repeat', undefined, { state });
   }
 
   async pause() {

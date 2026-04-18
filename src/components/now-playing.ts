@@ -1,20 +1,16 @@
 import { LitElement, html, css, nothing, svg } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import type { SpotifyDevice } from '../types.js';
 import { SpotifyApi } from '../spotify-api.js';
 
 @customElement('spotify-now-playing')
 export class NowPlayingPanel extends LitElement {
   @property({ attribute: false }) api: SpotifyApi | null = null;
   @property({ attribute: false }) playbackState: SpotifyApi.PlaybackState | null = null;
-  @property({ attribute: false }) devices: SpotifyDevice[] = [];
-  @property({ type: String }) selectedDeviceId = '';
 
   @state() private _seekDragging = false;
   @state() private _seekValue = 0;
   @state() private _shuffle = false;
   @state() private _repeat: 'off' | 'context' | 'track' = 'off';
-  @state() private _showDevices = false;
 
   static styles = css`
     :host {
@@ -299,76 +295,6 @@ export class NowPlayingPanel extends LitElement {
       cursor: pointer;
     }
 
-    /* Device picker */
-    .device-row {
-      width: 100%;
-      margin-top: 10px;
-      position: relative;
-    }
-    .device-btn {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 8px;
-      padding: 8px 12px;
-      cursor: pointer;
-      color: rgba(255,255,255,0.6);
-      font-size: 12px;
-      transition: background 0.15s, color 0.15s;
-    }
-    .device-btn:hover {
-      background: rgba(255,255,255,0.09);
-      color: #fff;
-    }
-    .device-btn-icon {
-      width: 14px;
-      height: 14px;
-      flex-shrink: 0;
-    }
-    .device-btn-label {
-      flex: 1;
-      text-align: left;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .device-menu {
-      position: absolute;
-      bottom: calc(100% + 4px);
-      left: 0;
-      right: 0;
-      background: #1e1e1e;
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      overflow: hidden;
-      z-index: 10;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-    }
-    .device-option {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      cursor: pointer;
-      font-size: 13px;
-      color: rgba(255,255,255,0.7);
-      transition: background 0.12s;
-    }
-    .device-option:hover { background: rgba(255,255,255,0.07); }
-    .device-option.active { color: #1DB954; }
-    .device-option-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #1DB954;
-      flex-shrink: 0;
-      opacity: 0;
-    }
-    .device-option.active .device-option-dot { opacity: 1; }
   `;
 
   private _fmtMs(ms: number): string {
@@ -382,7 +308,7 @@ export class NowPlayingPanel extends LitElement {
       if (this.playbackState?.is_playing) {
         await this.api.pause();
       } else {
-        await this.api.play(this.selectedDeviceId || undefined);
+        await this.api.play();
       }
       this._emit();
     } catch (_e) { /* parent polls */ }
@@ -401,7 +327,7 @@ export class NowPlayingPanel extends LitElement {
   private async _onShuffle() {
     if (!this.api) return;
     this._shuffle = !this._shuffle;
-    try { await this.api.setShuffle(this._shuffle, this.selectedDeviceId || undefined); } catch (_e) { /* ignore */ }
+    try { await this.api.setShuffle(this._shuffle); } catch (_e) { /* ignore */ }
   }
 
   private async _onRepeat() {
@@ -409,7 +335,7 @@ export class NowPlayingPanel extends LitElement {
     const states: Array<'off' | 'context' | 'track'> = ['off', 'context', 'track'];
     const idx = states.indexOf(this._repeat);
     this._repeat = states[(idx + 1) % 3];
-    try { await this.api.setRepeat(this._repeat, this.selectedDeviceId || undefined); } catch (_e) { /* ignore */ }
+    try { await this.api.setRepeat(this._repeat); } catch (_e) { /* ignore */ }
   }
 
   private _onSeekClick(e: MouseEvent) {
@@ -425,11 +351,6 @@ export class NowPlayingPanel extends LitElement {
   private async _onVolumeChange(e: Event) {
     if (!this.api) return;
     try { await this.api.setVolume(Number((e.target as HTMLInputElement).value)); } catch (_e) { /* ignore */ }
-  }
-
-  private _onDeviceSelect(deviceId: string) {
-    this._showDevices = false;
-    this.dispatchEvent(new CustomEvent('device-selected', { detail: { deviceId }, bubbles: true, composed: true }));
   }
 
   private _onAlbumClick() {
@@ -459,8 +380,6 @@ export class NowPlayingPanel extends LitElement {
     const volume = pb?.device?.volume_percent ?? 50;
     const imageUrl = track?.album?.images?.[0]?.url ?? null;
     const artistNames = track?.artists?.map(a => a.name).join(', ') ?? '';
-
-    const activeDevice = this.devices.find(d => d.id === this.selectedDeviceId) ?? this.devices.find(d => d.is_active);
 
     return html`
       ${imageUrl ? html`<div class="artwork-bg" style="background-image: url(${imageUrl})"></div>` : nothing}
@@ -538,28 +457,6 @@ export class NowPlayingPanel extends LitElement {
           <span class="vol-icon">${svgVolHigh}</span>
         </div>
 
-        ${this.devices.length > 0 ? html`
-          <div class="device-row">
-            <button class="device-btn" @click=${() => this._showDevices = !this._showDevices}>
-              <span class="device-btn-icon">${svgSpeaker}</span>
-              <span class="device-btn-label">${activeDevice?.name ?? 'No device'}</span>
-              ${svgChevron}
-            </button>
-            ${this._showDevices ? html`
-              <div class="device-menu">
-                ${this.devices.map(d => html`
-                  <div
-                    class="device-option ${d.id === this.selectedDeviceId || d.is_active ? 'active' : ''}"
-                    @click=${() => this._onDeviceSelect(d.id)}
-                  >
-                    <div class="device-option-dot"></div>
-                    ${d.name}
-                  </div>
-                `)}
-              </div>
-            ` : nothing}
-          </div>
-        ` : nothing}
       </div>
     `;
   }
@@ -574,8 +471,6 @@ const svgShuffle = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%"
 const svgRepeat = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>`;
 const svgRepeatOne = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4zm-4-2V9h-1l-2 1v1h1.5v6H13z"/></svg>`;
 const svgList = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>`;
-const svgSpeaker = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M17 2H7L4 8v14h16V8l-3-6zm1 18H6V8.58L8.29 4h7.42L18 8.58V20z"/></svg>`;
-const svgChevron = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12" style="flex-shrink:0;color:rgba(255,255,255,0.4)"><path d="M7 10l5 5 5-5z"/></svg>`;
 const svgVolLow = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M18.5 12A4.5 4.5 0 0 0 16 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/></svg>`;
 const svgVolHigh = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>`;
 
