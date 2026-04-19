@@ -46,11 +46,17 @@ export class SpotifyApi {
     return this.request<SpotifyApi.AlbumTracksResponse>('GET', `/albums/${albumId}/tracks`, undefined, { limit: '50' });
   }
 
+  async getPlaylistTracks(playlistId: string) {
+    return this.request<SpotifyApi.PlaylistTracksResponse>('GET', `/playlists/${playlistId}/tracks`, undefined, {
+      limit: '50',
+      fields: 'items(track(id,name,uri,duration_ms,popularity,artists,album))',
+    });
+  }
+
   async search(query: string) {
     return this.request<SpotifyApi.SearchResponse>('GET', '/search', undefined, {
       q: query,
       type: 'track,playlist',
-      limit: '20',
     });
   }
 
@@ -147,6 +153,7 @@ export namespace SpotifyApi {
     name: string;
     uri: string;
     duration_ms: number;
+    popularity?: number;
     artists: Array<{ id: string; name: string; uri: string }>;
     album: Album;
   }
@@ -162,12 +169,17 @@ export namespace SpotifyApi {
     items: AlbumTrack[];
     total: number;
   }
+  export interface PlaylistTracksResponse {
+    items: Array<{ track: Track | null }>;
+    total: number;
+  }
   export interface AlbumTrack {
     id: string;
     name: string;
     uri: string;
     duration_ms: number;
     track_number: number;
+    popularity?: number;
     artists: Array<{ id: string; name: string; uri: string }>;
   }
   export interface Image {

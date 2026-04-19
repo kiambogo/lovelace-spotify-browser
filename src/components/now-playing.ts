@@ -15,6 +15,9 @@ export class NowPlayingPanel extends LitElement {
   @state() private _shuffle = false;
   @state() private _repeat: 'off' | 'context' | 'track' = 'off';
 
+  // Suppress state sync from polling for 3s after user toggles shuffle/repeat
+  private _suppressSyncUntil = 0;
+
   static styles = css`
     :host {
       display: block;
@@ -282,6 +285,7 @@ export class NowPlayingPanel extends LitElement {
 
   private async _onShuffle() {
     this._shuffle = !this._shuffle;
+    this._suppressSyncUntil = Date.now() + 3000;
     if (this.sonosCoordinator && this.hass) {
       this.hass.callService('media_player', 'shuffle_set', {
         entity_id: this.sonosCoordinator,
@@ -296,6 +300,7 @@ export class NowPlayingPanel extends LitElement {
     const states: Array<'off' | 'context' | 'track'> = ['off', 'context', 'track'];
     const idx = states.indexOf(this._repeat);
     this._repeat = states[(idx + 1) % 3];
+    this._suppressSyncUntil = Date.now() + 3000;
     if (this.sonosCoordinator && this.hass) {
       // HA repeat modes: 'off', 'all', 'one'
       const haRepeat = this._repeat === 'context' ? 'all' : this._repeat === 'track' ? 'one' : 'off';
@@ -336,7 +341,7 @@ export class NowPlayingPanel extends LitElement {
   }
 
   updated(changedProps: Map<string, unknown>) {
-    if (changedProps.has('playbackState') && this.playbackState) {
+    if (changedProps.has('playbackState') && this.playbackState && Date.now() > this._suppressSyncUntil) {
       this._shuffle = this.playbackState.shuffle_state ?? false;
       this._repeat = this.playbackState.repeat_state ?? 'off';
     }

@@ -5,7 +5,7 @@ import { SpotifyApi } from '../spotify-api.js';
 
 type DrillTarget =
   | { kind: 'album'; album: SpotifyApi.Album }
-  | { kind: 'playlist'; playlist: SpotifyApi.Playlist; tracks?: SpotifyApi.AlbumTrack[] };
+  | { kind: 'playlist'; playlist: SpotifyApi.Playlist };
 
 @customElement('spotify-browse-panel')
 export class BrowsePanel extends LitElement {
@@ -23,7 +23,8 @@ export class BrowsePanel extends LitElement {
   @state() private _loading = false;
   @state() private _error = '';
   @state() private _drill: DrillTarget | null = null;
-  @state() private _drillTracks: Array<SpotifyApi.AlbumTrack> = [];
+  @state() private _drillAlbumTracks: SpotifyApi.AlbumTrack[] = [];
+  @state() private _drillPlaylistTracks: SpotifyApi.Track[] = [];
   @state() private _drillLoading = false;
 
   private _searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -355,19 +356,35 @@ export class BrowsePanel extends LitElement {
     }
   }
 
-  // Called externally (from parent) to drill into an album from now-playing view
   drillAlbum(album: SpotifyApi.Album) {
     this._openAlbumDrill(album);
   }
 
   private async _openAlbumDrill(album: SpotifyApi.Album) {
     this._drill = { kind: 'album', album };
-    this._drillTracks = [];
+    this._drillAlbumTracks = [];
+    this._drillPlaylistTracks = [];
     this._drillLoading = true;
     try {
       if (!this.api) return;
       const resp = await this.api.getAlbumTracks(album.id);
-      this._drillTracks = resp.items ?? [];
+      this._drillAlbumTracks = resp.items ?? [];
+    } catch (_e) { /* ignore */ } finally {
+      this._drillLoading = false;
+    }
+  }
+
+  private async _openPlaylistDrill(playlist: SpotifyApi.Playlist) {
+    this._drill = { kind: 'playlist', playlist };
+    this._drillAlbumTracks = [];
+    this._drillPlaylistTracks = [];
+    this._drillLoading = true;
+    try {
+      if (!this.api) return;
+      const resp = await this.api.getPlaylistTracks(playlist.id);
+      this._drillPlaylistTracks = (resp.items ?? [])
+        .map(i => i.track)
+        .filter((t): t is SpotifyApi.Track => t != null && !!t.uri);
     } catch (_e) { /* ignore */ } finally {
       this._drillLoading = false;
     }
@@ -499,6 +516,20 @@ export class BrowsePanel extends LitElement {
     } catch (_e) { /* ignore */ }
   }
 
+  private async _playPlaylistTrack(track: SpotifyApi.Track) {
+    const drill = this._drill;
+    if (!drill || drill.kind !== 'playlist') return;
+    if (this.sonosCoordinator) {
+      const ok = await this._playViaHa(track.uri, 'music', false);
+      if (ok) { this._emit(); return; }
+    }
+    if (!this.api) return;
+    try {
+      await this.api.play(drill.playlist.uri, undefined, track.uri);
+      this._emit();
+    } catch (_e) { /* ignore */ }
+  }
+
   private _emit() {
     this.dispatchEvent(new CustomEvent('playback-changed', { bubbles: true, composed: true }));
   }
@@ -522,15 +553,17 @@ export class BrowsePanel extends LitElement {
     const drill = this._drill!;
     const isAlbum = drill.kind === 'album';
     const item = isAlbum ? drill.album : drill.playlist;
-    const images = isAlbum ? (drill.album as SpotifyApi.Album).images : ((drill.playlist as SpotifyApi.Playlist).images ?? []);
+    const images = isAlbum ? drill.album.images : (drill.playlist.images ?? []);
     const thumbUrl = images?.[0]?.url;
     const subLabel = isAlbum
-      ? `${(drill.album as SpotifyApi.Album).artists?.map(a => a.name).join(', ')}`
-      : `${(drill.playlist as SpotifyApi.Playlist).tracks?.total ?? 0} songs`;
+      ? drill.album.artists?.map(a => a.name).join(', ')
+      : drill.playlist.owner?.display_name ?? '';
+
+    const tracks = isAlbum ? this._drillAlbumTracks : this._drillPlaylistTracks;
 
     return html`
       <div class="drill-header">
-        <button class="back-btn" @click=${() => { this._drill = null; this._drillTracks = []; }}>${svgBack}</button>
+        <button class="back-btn" @click=${() => { this._drill = null; this._drillAlbumTracks = []; this._drillPlaylistTracks = []; }}>${svgBack}</button>
         ${thumbUrl ? html`<img class="drill-thumb" src=${thumbUrl} alt="" />` : nothing}
         <div class="drill-info">
           <div class="drill-title">${(item as any).name}</div>
@@ -541,20 +574,14 @@ export class BrowsePanel extends LitElement {
       <div class="drill-actions">
         <button
           class="drill-action-btn btn-play"
-          @click=${() => isAlbum
-            ? this._playAlbum(drill.album as SpotifyApi.Album)
-            : this._playPlaylist(drill.playlist as SpotifyApi.Playlist)
-          }
+          @click=${() => isAlbum ? this._playAlbum(drill.album) : this._playPlaylist(drill.playlist)}
         >
           <span class="btn-icon">${svgPlaySmall}</span>
           Play
         </button>
         <button
           class="drill-action-btn btn-shuffle"
-          @click=${() => isAlbum
-            ? this._playAlbum(drill.album as SpotifyApi.Album, true)
-            : this._playPlaylist(drill.playlist as SpotifyApi.Playlist, true)
-          }
+          @click=${() => isAlbum ? this._playAlbum(drill.album, true) : this._playPlaylist(drill.playlist, true)}
         >
           <span class="btn-icon">${svgShuffleSmall}</span>
           Shuffle
@@ -563,23 +590,37 @@ export class BrowsePanel extends LitElement {
 
       <div class="tab-content">
         ${this._drillLoading ? this._renderLoading() : nothing}
-        ${!this._drillLoading && this._drillTracks.length === 0
+        ${!this._drillLoading && tracks.length === 0
           ? html`<div class="empty">No tracks</div>`
           : nothing}
-        ${this._drillTracks.map((t, i) => html`
-          <div class="item" @click=${() => this._playAlbumTrack(t.uri)}>
-            <div class="item-thumb-placeholder" style="font-size:12px;color:rgba(255,255,255,0.35);width:42px;height:42px;">
-              ${t.track_number ?? i + 1}
+        ${isAlbum
+          ? this._drillAlbumTracks.map((t, i) => html`
+            <div class="item" @click=${() => this._playAlbumTrack(t.uri)}>
+              <div class="item-thumb-placeholder" style="font-size:12px;color:rgba(255,255,255,0.35);width:42px;height:42px;">
+                ${t.track_number ?? i + 1}
+              </div>
+              <div class="item-info">
+                <div class="item-name">${t.name}</div>
+                <div class="item-sub">${(t.artists ?? []).map(a => a.name).join(', ')}</div>
+              </div>
+              <button class="item-play" @click=${(e: Event) => { e.stopPropagation(); this._playAlbumTrack(t.uri); }}>
+                ${svgPlaySmall}
+              </button>
             </div>
-            <div class="item-info">
-              <div class="item-name">${t.name}</div>
-              <div class="item-sub">${(t.artists ?? []).map(a => a.name).join(', ')}</div>
+          `)
+          : this._drillPlaylistTracks.map((t) => html`
+            <div class="item" @click=${() => this._playPlaylistTrack(t)}>
+              ${this._thumb(t.album?.images)}
+              <div class="item-info">
+                <div class="item-name">${t.name}</div>
+                <div class="item-sub">${(t.artists ?? []).map(a => a.name).join(', ')}</div>
+              </div>
+              <button class="item-play" @click=${(e: Event) => { e.stopPropagation(); this._playPlaylistTrack(t); }}>
+                ${svgPlaySmall}
+              </button>
             </div>
-            <button class="item-play" @click=${(e: Event) => { e.stopPropagation(); this._playAlbumTrack(t.uri); }}>
-              ${svgPlaySmall}
-            </button>
-          </div>
-        `)}
+          `)
+        }
       </div>
     `;
   }
@@ -592,11 +633,11 @@ export class BrowsePanel extends LitElement {
     if (!this._playlists.length) return html`<div class="empty">No playlists found</div>`;
 
     return this._playlists.map(p => html`
-      <div class="item" @click=${() => this._playPlaylist(p)}>
+      <div class="item" @click=${() => this._openPlaylistDrill(p)}>
         ${this._thumb(p.images, true)}
         <div class="item-info">
           <div class="item-name">${p.name}</div>
-          <div class="item-sub">${p.tracks?.total ?? 0} songs · ${p.owner?.display_name ?? ''}</div>
+          <div class="item-sub">${p.owner?.display_name ?? ''}</div>
         </div>
         <button class="item-play" @click=${(e: Event) => { e.stopPropagation(); this._playPlaylist(p); }}>
           ${svgPlaySmall}
