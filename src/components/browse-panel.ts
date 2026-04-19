@@ -227,6 +227,10 @@ export class BrowsePanel extends LitElement {
     .search-box {
       padding: 10px 14px;
       flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      background: #0a0a0a;
+      z-index: 1;
     }
     .search-inner {
       display: flex;
@@ -286,17 +290,17 @@ export class BrowsePanel extends LitElement {
 
     /* ── Mini now-playing bar ── */
     .mini-bar {
-      border-top: 1px solid rgba(255,255,255,0.08);
-      padding: 10px 14px;
+      border-top: 2px solid #1DB954;
+      padding: 10px 14px 12px;
       display: flex;
       align-items: center;
       gap: 10px;
-      background: rgba(0,0,0,0.35);
+      background: rgba(0,0,0,0.6);
       cursor: pointer;
       flex-shrink: 0;
       transition: background 0.15s;
     }
-    .mini-bar:hover { background: rgba(255,255,255,0.03); }
+    .mini-bar:hover { background: rgba(29,185,84,0.06); }
     .mini-art {
       width: 36px;
       height: 36px;
@@ -741,7 +745,7 @@ export class BrowsePanel extends LitElement {
       </div>
 
       ${this._activeTab === 'search'
-        ? html`${this._renderSearch()}`
+        ? html`<div class="tab-content" style="padding-top:0">${this._renderSearch()}</div>`
         : html`
           <div class="tab-content">
             ${this._activeTab === 'playlists' ? this._renderPlaylists() : nothing}
