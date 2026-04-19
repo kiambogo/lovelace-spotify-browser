@@ -768,7 +768,7 @@ let v = class extends E {
   updated(s) {
     if (s.has("playbackState") && this.playbackState) {
       const t = Date.now();
-      t > this._suppressShuffleUntil && (this._shuffle = this.playbackState.shuffle_state ?? !1), t > this._suppressRepeatUntil && (this._repeat = this.playbackState.repeat_state ?? "off"), this._progressBaseMs = this.playbackState.progress_ms ?? 0, this._progressBaseTime = Date.now(), this._localProgressMs = this._progressBaseMs;
+      t > this._suppressShuffleUntil && (this._shuffle = this.playbackState.shuffle_state ?? !1), t > this._suppressRepeatUntil && (this._repeat = this.playbackState.repeat_state ?? "off"), this._progressBaseMs = this.playbackState.progress_ms ?? 0, this._progressBaseTime = Date.now(), this._localProgressMs = this._progressBaseMs, this._progressInterval || this._startProgressTimer();
     }
   }
   render() {

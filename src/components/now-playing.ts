@@ -380,6 +380,7 @@ export class NowPlayingPanel extends LitElement {
       this._progressBaseMs = this.playbackState.progress_ms ?? 0;
       this._progressBaseTime = Date.now();
       this._localProgressMs = this._progressBaseMs;
+      if (!this._progressInterval) this._startProgressTimer();
     }
   }
 
