@@ -14,9 +14,13 @@ export class NowPlayingPanel extends LitElement {
   @state() private _seekValue = 0;
   @state() private _shuffle = false;
   @state() private _repeat: 'off' | 'context' | 'track' = 'off';
+  @state() private _localProgressMs = 0;
 
   private _suppressShuffleUntil = 0;
   private _suppressRepeatUntil = 0;
+  private _progressInterval: ReturnType<typeof setInterval> | null = null;
+  private _progressBaseMs = 0;
+  private _progressBaseTime = 0;
 
   static styles = css`
     :host {
@@ -340,11 +344,42 @@ export class NowPlayingPanel extends LitElement {
     this.dispatchEvent(new CustomEvent('playback-changed', { bubbles: true, composed: true }));
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    this._startProgressTimer();
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this._stopProgressTimer();
+  }
+
+  private _startProgressTimer() {
+    this._progressInterval = setInterval(() => {
+      if (this.playbackState?.is_playing && !this._seekDragging) {
+        const elapsed = Date.now() - this._progressBaseTime;
+        const duration = this.playbackState.item?.duration_ms ?? 0;
+        this._localProgressMs = Math.min(this._progressBaseMs + elapsed, duration);
+      }
+    }, 1000);
+  }
+
+  private _stopProgressTimer() {
+    if (this._progressInterval !== null) {
+      clearInterval(this._progressInterval);
+      this._progressInterval = null;
+    }
+  }
+
   updated(changedProps: Map<string, unknown>) {
     if (changedProps.has('playbackState') && this.playbackState) {
       const now = Date.now();
       if (now > this._suppressShuffleUntil) this._shuffle = this.playbackState.shuffle_state ?? false;
       if (now > this._suppressRepeatUntil) this._repeat = this.playbackState.repeat_state ?? 'off';
+      // Sync local progress baseline from the ground-truth poll
+      this._progressBaseMs = this.playbackState.progress_ms ?? 0;
+      this._progressBaseTime = Date.now();
+      this._localProgressMs = this._progressBaseMs;
     }
   }
 
@@ -352,7 +387,7 @@ export class NowPlayingPanel extends LitElement {
     const pb = this.playbackState;
     const track = pb?.item ?? null;
     const isPlaying = pb?.is_playing ?? false;
-    const progressMs = this._seekDragging ? this._seekValue : (pb?.progress_ms ?? 0);
+    const progressMs = this._seekDragging ? this._seekValue : this._localProgressMs;
     const durationMs = track?.duration_ms ?? 0;
     const pct = durationMs > 0 ? Math.min(100, (progressMs / durationMs) * 100) : 0;
     const imageUrl = track?.album?.images?.[0]?.url ?? null;
