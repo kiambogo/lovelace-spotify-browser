@@ -27,15 +27,15 @@ export class SpotifyApi {
   }
 
   async getPlaylists() {
-    return this.request<SpotifyApi.PlaylistsResponse>('GET', '/me/playlists', undefined, { limit: 50 });
+    return this.request<SpotifyApi.PlaylistsResponse>('GET', '/me/playlists', undefined, { limit: '50' });
   }
 
   async getRecentlyPlayed() {
-    return this.request<SpotifyApi.RecentlyPlayedResponse>('GET', '/me/player/recently-played', undefined, { limit: 50 });
+    return this.request<SpotifyApi.RecentlyPlayedResponse>('GET', '/me/player/recently-played', undefined, { limit: '50' });
   }
 
   async getTopTracks() {
-    return this.request<SpotifyApi.TopTracksResponse>('GET', '/me/top/tracks', undefined, { limit: 50 });
+    return this.request<SpotifyApi.TopTracksResponse>('GET', '/me/top/tracks', undefined, { limit: '50' });
   }
 
   async getAlbum(albumId: string) {
@@ -43,14 +43,14 @@ export class SpotifyApi {
   }
 
   async getAlbumTracks(albumId: string) {
-    return this.request<SpotifyApi.AlbumTracksResponse>('GET', `/albums/${albumId}/tracks`, undefined, { limit: 50 });
+    return this.request<SpotifyApi.AlbumTracksResponse>('GET', `/albums/${albumId}/tracks`, undefined, { limit: '50' });
   }
 
   async search(query: string) {
     return this.request<SpotifyApi.SearchResponse>('GET', '/search', undefined, {
       q: query,
-      type: 'track,playlist,album,artist',
-      limit: 20,
+      type: 'track,playlist',
+      limit: '20',
     });
   }
 
@@ -91,11 +91,11 @@ export class SpotifyApi {
   }
 
   async setVolume(volumePercent: number) {
-    return this.request('PUT', '/me/player/volume', undefined, { volume_percent: volumePercent });
+    return this.request('PUT', '/me/player/volume', undefined, { volume_percent: String(volumePercent) });
   }
 
   async seek(positionMs: number) {
-    return this.request('PUT', '/me/player/seek', undefined, { position_ms: positionMs });
+    return this.request('PUT', '/me/player/seek', undefined, { position_ms: String(positionMs) });
   }
 }
 

@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing, svg } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import type { BrowseTab } from '../types.js';
+import type { BrowseTab, HomeAssistant } from '../types.js';
 import { SpotifyApi } from '../spotify-api.js';
 
 type DrillTarget =
@@ -11,6 +11,8 @@ type DrillTarget =
 export class BrowsePanel extends LitElement {
   @property({ attribute: false }) api: SpotifyApi | null = null;
   @property({ attribute: false }) initialAlbum: SpotifyApi.Album | null = null;
+  @property({ attribute: false }) hass: HomeAssistant | null = null;
+  @property({ attribute: false }) sonosCoordinator: string | null = null;
 
   @state() private _activeTab: BrowseTab = 'playlists';
   @state() private _playlists: SpotifyApi.Playlist[] = [];
@@ -427,7 +429,29 @@ export class BrowsePanel extends LitElement {
     }
   }
 
+  private async _playViaHa(mediaContentId: string, mediaContentType: string, shuffle = false) {
+    if (!this.hass || !this.sonosCoordinator) return false;
+    try {
+      if (shuffle) {
+        await this.hass.callService('media_player', 'shuffle_set', {
+          entity_id: this.sonosCoordinator,
+          shuffle: true,
+        });
+      }
+      await this.hass.callService('media_player', 'play_media', {
+        entity_id: this.sonosCoordinator,
+        media_content_id: mediaContentId,
+        media_content_type: mediaContentType,
+      });
+      return true;
+    } catch (_e) { return false; }
+  }
+
   private async _playPlaylist(playlist: SpotifyApi.Playlist, shuffle = false) {
+    if (this.sonosCoordinator) {
+      const ok = await this._playViaHa(playlist.uri, 'playlist', shuffle);
+      if (ok) { this._emit(); return; }
+    }
     if (!this.api) return;
     try {
       if (shuffle) await this.api.setShuffle(true);
@@ -437,6 +461,10 @@ export class BrowsePanel extends LitElement {
   }
 
   private async _playTrack(track: SpotifyApi.Track) {
+    if (this.sonosCoordinator) {
+      const ok = await this._playViaHa(track.uri, 'music', false);
+      if (ok) { this._emit(); return; }
+    }
     if (!this.api) return;
     try {
       await this.api.play(undefined, [track.uri]);
@@ -444,16 +472,24 @@ export class BrowsePanel extends LitElement {
     } catch (_e) { /* ignore */ }
   }
 
-  private async _playAlbum(album: SpotifyApi.Album, shuffle = false, trackUri?: string) {
+  private async _playAlbum(album: SpotifyApi.Album, shuffle = false, _trackUri?: string) {
+    if (this.sonosCoordinator) {
+      const ok = await this._playViaHa(album.uri, 'album', shuffle);
+      if (ok) { this._emit(); return; }
+    }
     if (!this.api) return;
     try {
       if (shuffle) await this.api.setShuffle(true);
-      await this.api.play(album.uri, undefined, trackUri);
+      await this.api.play(album.uri, undefined, _trackUri);
       this._emit();
     } catch (_e) { /* ignore */ }
   }
 
   private async _playAlbumTrack(trackUri: string) {
+    if (this.sonosCoordinator) {
+      const ok = await this._playViaHa(trackUri, 'music', false);
+      if (ok) { this._emit(); return; }
+    }
     const drill = this._drill;
     if (!this.api || !drill || drill.kind !== 'album') return;
     try {

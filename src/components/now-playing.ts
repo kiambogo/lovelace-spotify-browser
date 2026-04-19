@@ -1,11 +1,14 @@
 import { LitElement, html, css, nothing, svg } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { SpotifyApi } from '../spotify-api.js';
+import type { HomeAssistant } from '../types.js';
 
 @customElement('spotify-now-playing')
 export class NowPlayingPanel extends LitElement {
   @property({ attribute: false }) api: SpotifyApi | null = null;
   @property({ attribute: false }) playbackState: SpotifyApi.PlaybackState | null = null;
+  @property({ attribute: false }) hass: HomeAssistant | null = null;
+  @property({ attribute: false }) sonosCoordinator: string | null = null;
 
   @state() private _seekDragging = false;
   @state() private _seekValue = 0;
@@ -254,47 +257,6 @@ export class NowPlayingPanel extends LitElement {
       box-shadow: 0 6px 28px rgba(29,185,84,0.5);
     }
 
-    /* Volume row */
-    .volume-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      width: 100%;
-      margin-top: 12px;
-    }
-    .vol-icon {
-      color: rgba(255,255,255,0.4);
-      width: 16px;
-      height: 16px;
-      flex-shrink: 0;
-    }
-    .volume-slider {
-      -webkit-appearance: none;
-      appearance: none;
-      flex: 1;
-      height: 3px;
-      border-radius: 2px;
-      background: rgba(255,255,255,0.15);
-      outline: none;
-      cursor: pointer;
-    }
-    .volume-slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: #fff;
-      cursor: pointer;
-    }
-    .volume-slider::-moz-range-thumb {
-      width: 12px;
-      height: 12px;
-      border: none;
-      border-radius: 50%;
-      background: #fff;
-      cursor: pointer;
-    }
-
   `;
 
   private _fmtMs(ms: number): string {
@@ -319,32 +281,48 @@ export class NowPlayingPanel extends LitElement {
   }
 
   private async _onShuffle() {
-    if (!this.api) return;
     this._shuffle = !this._shuffle;
-    try { await this.api.setShuffle(this._shuffle); } catch (_e) { /* ignore */ }
+    if (this.sonosCoordinator && this.hass) {
+      this.hass.callService('media_player', 'shuffle_set', {
+        entity_id: this.sonosCoordinator,
+        shuffle: this._shuffle,
+      }).then(() => this._emit()).catch(() => { /* ignore */ });
+    } else if (this.api) {
+      try { await this.api.setShuffle(this._shuffle); this._emit(); } catch (_e) { /* ignore */ }
+    }
   }
 
   private async _onRepeat() {
-    if (!this.api) return;
     const states: Array<'off' | 'context' | 'track'> = ['off', 'context', 'track'];
     const idx = states.indexOf(this._repeat);
     this._repeat = states[(idx + 1) % 3];
-    try { await this.api.setRepeat(this._repeat); } catch (_e) { /* ignore */ }
+    if (this.sonosCoordinator && this.hass) {
+      // HA repeat modes: 'off', 'all', 'one'
+      const haRepeat = this._repeat === 'context' ? 'all' : this._repeat === 'track' ? 'one' : 'off';
+      this.hass.callService('media_player', 'repeat_set', {
+        entity_id: this.sonosCoordinator,
+        repeat: haRepeat,
+      }).then(() => this._emit()).catch(() => { /* ignore */ });
+    } else if (this.api) {
+      try { await this.api.setRepeat(this._repeat); this._emit(); } catch (_e) { /* ignore */ }
+    }
   }
 
   private _onSeekClick(e: MouseEvent) {
     const pb = this.playbackState;
-    if (!this.api || !pb?.item) return;
+    if (!pb?.item) return;
     const bar = (e.currentTarget as HTMLElement);
     const rect = bar.getBoundingClientRect();
     const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
     const posMs = Math.round(ratio * pb.item.duration_ms);
-    this.api.seek(posMs).then(() => this._emit()).catch(() => { /* ignore */ });
-  }
-
-  private async _onVolumeChange(e: Event) {
-    if (!this.api) return;
-    try { await this.api.setVolume(Number((e.target as HTMLInputElement).value)); } catch (_e) { /* ignore */ }
+    if (this.sonosCoordinator && this.hass) {
+      this.hass.callService('media_player', 'media_seek', {
+        entity_id: this.sonosCoordinator,
+        seek_position: posMs / 1000,
+      }).then(() => this._emit()).catch(() => { /* ignore */ });
+    } else if (this.api) {
+      this.api.seek(posMs).then(() => this._emit()).catch(() => { /* ignore */ });
+    }
   }
 
   private _onAlbumClick() {
@@ -371,7 +349,6 @@ export class NowPlayingPanel extends LitElement {
     const progressMs = this._seekDragging ? this._seekValue : (pb?.progress_ms ?? 0);
     const durationMs = track?.duration_ms ?? 0;
     const pct = durationMs > 0 ? Math.min(100, (progressMs / durationMs) * 100) : 0;
-    const volume = pb?.device?.volume_percent ?? 50;
     const imageUrl = track?.album?.images?.[0]?.url ?? null;
     const artistNames = track?.artists?.map(a => a.name).join(', ') ?? '';
 
@@ -438,19 +415,6 @@ export class NowPlayingPanel extends LitElement {
           >${this._repeat === 'track' ? svgRepeatOne : svgRepeat}</button>
         </div>
 
-        <div class="volume-row">
-          <span class="vol-icon">${svgVolLow}</span>
-          <input
-            type="range"
-            class="volume-slider"
-            min="0"
-            max="100"
-            .value=${String(volume)}
-            @change=${this._onVolumeChange}
-          />
-          <span class="vol-icon">${svgVolHigh}</span>
-        </div>
-
       </div>
     `;
   }
@@ -465,8 +429,6 @@ const svgShuffle = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%"
 const svgRepeat = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>`;
 const svgRepeatOne = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4zm-4-2V9h-1l-2 1v1h1.5v6H13z"/></svg>`;
 const svgList = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>`;
-const svgVolLow = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M18.5 12A4.5 4.5 0 0 0 16 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/></svg>`;
-const svgVolHigh = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>`;
 
 void nothing;
 

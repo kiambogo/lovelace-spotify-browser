@@ -224,6 +224,8 @@ export class SpotifyBrowserCard extends LitElement {
                     <spotify-now-playing
                       .api=${this._api}
                       .playbackState=${this._playbackState}
+                      .hass=${this._hass}
+                      .sonosCoordinator=${this._sonosCoordinator()}
                       @playback-changed=${this._onPlaybackChanged}
                       @transport-action=${this._onTransportAction}
                       @show-browse=${() => this._view = 'browse'}
@@ -236,6 +238,8 @@ export class SpotifyBrowserCard extends LitElement {
                     <spotify-browse-panel
                       .api=${this._api}
                       .initialAlbum=${this._pendingAlbumDrill}
+                      .hass=${this._hass}
+                      .sonosCoordinator=${this._sonosCoordinator()}
                       @playback-changed=${this._onPlaybackChanged}
                       @show-now-playing=${() => { this._view = 'now-playing'; this._pendingAlbumDrill = null; }}
                       @mini-control=${this._onMiniControl}
