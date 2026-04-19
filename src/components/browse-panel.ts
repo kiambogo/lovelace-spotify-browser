@@ -35,6 +35,7 @@ export class BrowsePanel extends LitElement {
   @state() private _drillLoading = false;
 
   private _searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private _searchSeq = 0;
 
   static styles = css`
     :host {
@@ -438,7 +439,9 @@ export class BrowsePanel extends LitElement {
     this._searchQuery = query;
     if (this._searchDebounceTimer) clearTimeout(this._searchDebounceTimer);
     if (!query.trim()) {
+      ++this._searchSeq; // cancel any in-flight search
       this._searchResults = { tracks: [], playlists: [] };
+      this._searchLoading = false;
       return;
     }
     this._searchDebounceTimer = setTimeout(() => this._doSearch(query), 300);
@@ -446,18 +449,21 @@ export class BrowsePanel extends LitElement {
 
   private async _doSearch(query: string) {
     if (!this.api) return;
+    const seq = ++this._searchSeq;
     this._searchLoading = true;
     this._error = '';
     try {
       const resp = await this.api.search(query);
+      if (seq !== this._searchSeq) return; // stale — a newer search is in flight
       this._searchResults = {
         tracks: resp.tracks?.items ?? [],
         playlists: resp.playlists?.items ?? [],
       };
     } catch (err) {
+      if (seq !== this._searchSeq) return;
       this._error = _errMsg(err);
     } finally {
-      this._searchLoading = false;
+      if (seq === this._searchSeq) this._searchLoading = false;
     }
   }
 
