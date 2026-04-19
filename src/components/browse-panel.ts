@@ -385,13 +385,16 @@ export class BrowsePanel extends LitElement {
     this._drillAlbumTracks = [];
     this._drillPlaylistTracks = [];
     this._drillLoading = true;
+    this._error = '';
     try {
       if (!this.api) return;
       const resp = await this.api.getPlaylistTracks(playlist.id);
       this._drillPlaylistTracks = (resp.items ?? [])
         .map(i => i.track)
         .filter((t): t is SpotifyApi.Track => t != null && !!t.uri);
-    } catch (_e) { /* ignore */ } finally {
+    } catch (e: unknown) {
+      this._error = e instanceof Error ? e.message : String(e);
+    } finally {
       this._drillLoading = false;
     }
   }
@@ -596,7 +599,10 @@ export class BrowsePanel extends LitElement {
 
       <div class="tab-content">
         ${this._drillLoading ? this._renderLoading() : nothing}
-        ${!this._drillLoading && tracks.length === 0
+        ${!this._drillLoading && this._error
+          ? html`<div class="error">${this._error}</div>`
+          : nothing}
+        ${!this._drillLoading && !this._error && tracks.length === 0
           ? html`<div class="empty">No tracks</div>`
           : nothing}
         ${isAlbum
@@ -723,7 +729,9 @@ export class BrowsePanel extends LitElement {
     // Drill-down overrides tab content but keeps mini-bar
     if (this._drill) {
       return html`
-        ${this._renderDrill()}
+        <div style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+          ${this._renderDrill()}
+        </div>
         ${this._renderMiniBar()}
       `;
     }
