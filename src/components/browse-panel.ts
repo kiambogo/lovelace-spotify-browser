@@ -7,6 +7,12 @@ type DrillTarget =
   | { kind: 'album'; album: SpotifyApi.Album }
   | { kind: 'playlist'; playlist: SpotifyApi.Playlist };
 
+function _errMsg(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (e && typeof e === 'object' && 'message' in e) return String((e as any).message);
+  return String(e);
+}
+
 @customElement('spotify-browse-panel')
 export class BrowsePanel extends LitElement {
   @property({ attribute: false }) api: SpotifyApi | null = null;
@@ -393,7 +399,7 @@ export class BrowsePanel extends LitElement {
         .map(i => i.track)
         .filter((t): t is SpotifyApi.Track => t != null && !!t.uri);
     } catch (e: unknown) {
-      this._error = e instanceof Error ? e.message : String(e);
+      this._error = _errMsg(e);
     } finally {
       this._drillLoading = false;
     }
@@ -415,7 +421,7 @@ export class BrowsePanel extends LitElement {
         this._topTracks = (resp.items ?? []).filter((t: any) => t && t.uri);
       }
     } catch (err) {
-      this._error = err instanceof Error ? err.message : 'Failed to load';
+      this._error = _errMsg(err);
     } finally {
       this._loading = false;
     }
@@ -449,7 +455,7 @@ export class BrowsePanel extends LitElement {
         playlists: resp.playlists?.items ?? [],
       };
     } catch (err) {
-      this._error = err instanceof Error ? err.message : 'Search failed';
+      this._error = _errMsg(err);
     } finally {
       this._searchLoading = false;
     }
