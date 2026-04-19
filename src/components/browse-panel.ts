@@ -22,6 +22,8 @@ export class BrowsePanel extends LitElement {
 
   @state() private _activeTab: BrowseTab = 'playlists';
   @state() private _playlists: SpotifyApi.Playlist[] = [];
+  @state() private _playlistsTotal = 0;
+  @state() private _playlistsLoadingMore = false;
   @state() private _recentTracks: SpotifyApi.Track[] = [];
   @state() private _topTracks: SpotifyApi.Track[] = [];
   @state() private _searchResults: { tracks: SpotifyApi.Track[]; playlists: SpotifyApi.Playlist[] } = { tracks: [], playlists: [] };
@@ -32,10 +34,14 @@ export class BrowsePanel extends LitElement {
   @state() private _drill: DrillTarget | null = null;
   @state() private _drillAlbumTracks: SpotifyApi.AlbumTrack[] = [];
   @state() private _drillPlaylistTracks: SpotifyApi.Track[] = [];
+  @state() private _drillTotal = 0;
+  @state() private _drillLoadingMore = false;
   @state() private _drillLoading = false;
 
   private _searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private _searchSeq = 0;
+  private _playlistsObserver: IntersectionObserver | null = null;
+  private _drillObserver: IntersectionObserver | null = null;
 
   static styles = css`
     :host {
@@ -299,6 +305,22 @@ export class BrowsePanel extends LitElement {
     .error { padding: 16px 14px; color: #f44336; font-size: 13px; text-align: center; }
     .empty { padding: 24px 14px; color: rgba(255,255,255,0.3); font-style: italic; text-align: center; font-size: 13px; }
 
+    .load-more-sentinel {
+      height: 1px;
+      margin-bottom: 1px;
+    }
+    .load-more-spinner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+    }
+    .load-more-spinner .spinner {
+      width: 14px;
+      height: 14px;
+      border-width: 2px;
+    }
+
     /* ── Mini now-playing bar ── */
     .mini-bar {
       border-top: 2px solid #1DB954;
@@ -394,25 +416,30 @@ export class BrowsePanel extends LitElement {
     this._drill = { kind: 'playlist', playlist };
     this._drillAlbumTracks = [];
     this._drillPlaylistTracks = [];
+    this._drillTotal = 0;
     this._drillLoading = true;
+    this._drillObserver?.disconnect();
     this._error = '';
     try {
       if (!this.api) return;
       if (playlist.uri === 'spotify:collection') {
-        const resp = await this.api.getSavedTracks();
+        const resp = await this.api.getSavedTracks(0);
         this._drillPlaylistTracks = (resp.items ?? [])
           .map(i => i.track)
           .filter((t): t is SpotifyApi.Track => t != null && !!t.uri);
+        this._drillTotal = resp.total;
       } else {
-        const resp = await this.api.getPlaylistTracks(playlist.id);
+        const resp = await this.api.getPlaylistTracks(playlist.id, 0);
         this._drillPlaylistTracks = (resp.items ?? [])
           .map(i => i.item ?? i.track)
           .filter((t): t is SpotifyApi.Track => t != null && !!t.uri);
+        this._drillTotal = resp.total;
       }
     } catch (e: unknown) {
       this._error = _errMsg(e);
     } finally {
       this._drillLoading = false;
+      await this.updateComplete.then(() => this._connectDrillObserver());
     }
   }
 
@@ -420,10 +447,11 @@ export class BrowsePanel extends LitElement {
     if (!this.api || tab === 'search') return;
     this._loading = true;
     this._error = '';
+    this._disconnectObservers();
     try {
       if (tab === 'playlists') {
         const [playlistsResp, savedResp] = await Promise.all([
-          this.api.getPlaylists(),
+          this.api.getPlaylists(0),
           this.api.getSavedTracks(),
         ]);
         const likedSongs: SpotifyApi.Playlist = {
@@ -436,6 +464,7 @@ export class BrowsePanel extends LitElement {
         };
         const fetched = (playlistsResp.items ?? []).filter((p): p is SpotifyApi.Playlist => p != null && p.uri != null);
         this._playlists = [likedSongs, ...fetched];
+        this._playlistsTotal = playlistsResp.total;
       } else if (tab === 'recently-played') {
         const resp = await this.api.getRecentlyPlayed();
         this._recentTracks = (resp.items ?? []).map((i: any) => i.track).filter((t: any) => t && t.uri);
@@ -447,11 +476,81 @@ export class BrowsePanel extends LitElement {
       this._error = _errMsg(err);
     } finally {
       this._loading = false;
+      if (tab === 'playlists') await this.updateComplete.then(() => this._connectPlaylistsObserver());
     }
+  }
+
+  private _connectPlaylistsObserver() {
+    this._playlistsObserver?.disconnect();
+    // +1 accounts for the synthetic Liked Songs entry
+    if (this._playlists.length - 1 >= this._playlistsTotal) return;
+    const sentinel = this.shadowRoot?.querySelector<HTMLElement>('#playlists-sentinel');
+    if (!sentinel) return;
+    this._playlistsObserver = new IntersectionObserver(entries => {
+      if (entries[0]?.isIntersecting) this._loadMorePlaylists();
+    }, { threshold: 0 });
+    this._playlistsObserver.observe(sentinel);
+  }
+
+  private async _loadMorePlaylists() {
+    if (!this.api || this._playlistsLoadingMore) return;
+    // offset excludes the synthetic Liked Songs entry
+    const offset = this._playlists.length - 1;
+    if (offset >= this._playlistsTotal) { this._playlistsObserver?.disconnect(); return; }
+    this._playlistsLoadingMore = true;
+    try {
+      const resp = await this.api.getPlaylists(offset);
+      const fetched = (resp.items ?? []).filter((p): p is SpotifyApi.Playlist => p != null && p.uri != null);
+      this._playlists = [...this._playlists, ...fetched];
+      if (this._playlists.length - 1 >= this._playlistsTotal) this._playlistsObserver?.disconnect();
+    } catch (_e) { /* silently fail — user can scroll again */ } finally {
+      this._playlistsLoadingMore = false;
+    }
+  }
+
+  private _connectDrillObserver() {
+    this._drillObserver?.disconnect();
+    if (this._drillPlaylistTracks.length >= this._drillTotal) return;
+    const sentinel = this.shadowRoot?.querySelector<HTMLElement>('#drill-sentinel');
+    if (!sentinel) return;
+    this._drillObserver = new IntersectionObserver(entries => {
+      if (entries[0]?.isIntersecting) this._loadMoreDrillTracks();
+    }, { threshold: 0 });
+    this._drillObserver.observe(sentinel);
+  }
+
+  private async _loadMoreDrillTracks() {
+    const drill = this._drill;
+    if (!this.api || !drill || drill.kind !== 'playlist' || this._drillLoadingMore) return;
+    const offset = this._drillPlaylistTracks.length;
+    if (offset >= this._drillTotal) { this._drillObserver?.disconnect(); return; }
+    this._drillLoadingMore = true;
+    try {
+      if (drill.playlist.uri === 'spotify:collection') {
+        const resp = await this.api.getSavedTracks(offset);
+        const tracks = (resp.items ?? []).map(i => i.track).filter((t): t is SpotifyApi.Track => t != null && !!t.uri);
+        this._drillPlaylistTracks = [...this._drillPlaylistTracks, ...tracks];
+      } else {
+        const resp = await this.api.getPlaylistTracks(drill.playlist.id, offset);
+        const tracks = (resp.items ?? []).map(i => i.item ?? i.track).filter((t): t is SpotifyApi.Track => t != null && !!t.uri);
+        this._drillPlaylistTracks = [...this._drillPlaylistTracks, ...tracks];
+      }
+      if (this._drillPlaylistTracks.length >= this._drillTotal) this._drillObserver?.disconnect();
+    } catch (_e) { /* silently fail */ } finally {
+      this._drillLoadingMore = false;
+    }
+  }
+
+  private _disconnectObservers() {
+    this._playlistsObserver?.disconnect();
+    this._playlistsObserver = null;
+    this._drillObserver?.disconnect();
+    this._drillObserver = null;
   }
 
   private _switchTab(tab: BrowseTab) {
     if (this._activeTab === tab) return;
+    this._disconnectObservers();
     this._activeTab = tab;
     this._loadTab(tab);
   }
@@ -606,7 +705,7 @@ export class BrowsePanel extends LitElement {
 
     return html`
       <div class="drill-header">
-        <button class="back-btn" @click=${() => { this._drill = null; this._drillAlbumTracks = []; this._drillPlaylistTracks = []; }}>${svgBack}</button>
+        <button class="back-btn" @click=${() => { this._drill = null; this._drillAlbumTracks = []; this._drillPlaylistTracks = []; this._drillObserver?.disconnect(); }}>${svgBack}</button>
         ${thumbUrl ? html`<img class="drill-thumb" src=${thumbUrl} alt="" />` : nothing}
         <div class="drill-info">
           <div class="drill-title">${(item as any).name}</div>
@@ -654,18 +753,22 @@ export class BrowsePanel extends LitElement {
               </button>
             </div>
           `)
-          : this._drillPlaylistTracks.map((t) => html`
-            <div class="item" @click=${() => this._playPlaylistTrack(t)}>
-              ${this._thumb(t.album?.images)}
-              <div class="item-info">
-                <div class="item-name">${t.name}</div>
-                <div class="item-sub">${(t.artists ?? []).map(a => a.name).join(', ')}</div>
+          : html`
+            ${this._drillPlaylistTracks.map((t) => html`
+              <div class="item" @click=${() => this._playPlaylistTrack(t)}>
+                ${this._thumb(t.album?.images)}
+                <div class="item-info">
+                  <div class="item-name">${t.name}</div>
+                  <div class="item-sub">${(t.artists ?? []).map(a => a.name).join(', ')}</div>
+                </div>
+                <button class="item-play" @click=${(e: Event) => { e.stopPropagation(); this._playPlaylistTrack(t); }}>
+                  ${svgPlaySmall}
+                </button>
               </div>
-              <button class="item-play" @click=${(e: Event) => { e.stopPropagation(); this._playPlaylistTrack(t); }}>
-                ${svgPlaySmall}
-              </button>
-            </div>
-          `)
+            `)}
+            <div id="drill-sentinel" class="load-more-sentinel"></div>
+            ${this._drillLoadingMore ? html`<div class="load-more-spinner"><div class="spinner"></div></div>` : nothing}
+          `
         }
       </div>
     `;
@@ -678,24 +781,28 @@ export class BrowsePanel extends LitElement {
     if (this._error) return html`<div class="error">${this._error}</div>`;
     if (!this._playlists.length) return html`<div class="empty">No playlists found</div>`;
 
-    return this._playlists.map(p => {
-      const isLiked = p.uri === 'spotify:collection';
-      const subText = isLiked
-        ? (p.tracks?.total != null ? `${p.tracks.total} liked songs` : 'Your liked songs')
-        : (p.owner?.display_name ?? '');
-      return html`
-        <div class="item" @click=${() => this._openPlaylistDrill(p)}>
-          ${this._thumb(p.images, !isLiked, isLiked ? svgHeart : undefined, isLiked ? 'liked' : '')}
-          <div class="item-info">
-            <div class="item-name">${p.name}</div>
-            <div class="item-sub">${subText}</div>
+    return html`
+      ${this._playlists.map(p => {
+        const isLiked = p.uri === 'spotify:collection';
+        const subText = isLiked
+          ? (p.tracks?.total != null ? `${p.tracks.total} liked songs` : 'Your liked songs')
+          : (p.owner?.display_name ?? '');
+        return html`
+          <div class="item" @click=${() => this._openPlaylistDrill(p)}>
+            ${this._thumb(p.images, !isLiked, isLiked ? svgHeart : undefined, isLiked ? 'liked' : '')}
+            <div class="item-info">
+              <div class="item-name">${p.name}</div>
+              <div class="item-sub">${subText}</div>
+            </div>
+            <button class="item-play" @click=${(e: Event) => { e.stopPropagation(); this._playPlaylist(p); }}>
+              ${svgPlaySmall}
+            </button>
           </div>
-          <button class="item-play" @click=${(e: Event) => { e.stopPropagation(); this._playPlaylist(p); }}>
-            ${svgPlaySmall}
-          </button>
-        </div>
-      `;
-    });
+        `;
+      })}
+      <div id="playlists-sentinel" class="load-more-sentinel"></div>
+      ${this._playlistsLoadingMore ? html`<div class="load-more-spinner"><div class="spinner"></div></div>` : nothing}
+    `;
   }
 
   private _renderTrackList(tracks: SpotifyApi.Track[], nowPlayingUri?: string) {

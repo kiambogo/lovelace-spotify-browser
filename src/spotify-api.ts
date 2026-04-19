@@ -26,8 +26,8 @@ export class SpotifyApi {
     });
   }
 
-  async getPlaylists() {
-    return this.request<SpotifyApi.PlaylistsResponse>('GET', '/me/playlists', undefined, { limit: '50' });
+  async getPlaylists(offset = 0) {
+    return this.request<SpotifyApi.PlaylistsResponse>('GET', '/me/playlists', undefined, { limit: '50', offset: String(offset) });
   }
 
   async getRecentlyPlayed() {
@@ -46,9 +46,10 @@ export class SpotifyApi {
     return this.request<SpotifyApi.AlbumTracksResponse>('GET', `/albums/${albumId}/tracks`, undefined, { limit: '50' });
   }
 
-  async getPlaylistTracks(playlistId: string) {
+  async getPlaylistTracks(playlistId: string, offset = 0) {
     return this.request<SpotifyApi.PlaylistTracksResponse>('GET', `/playlists/${playlistId}/items`, undefined, {
       limit: '50',
+      offset: String(offset),
     });
   }
 
