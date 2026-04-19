@@ -1754,10 +1754,10 @@ _.styles = tt`
     /* ── Mini now-playing bar ── */
     .mini-bar {
       border-top: 2px solid #1DB954;
-      padding: 10px 14px 12px;
+      padding: 12px 14px 14px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       background: rgba(0,0,0,0.6);
       cursor: pointer;
       flex-shrink: 0;
@@ -1765,16 +1765,16 @@ _.styles = tt`
     }
     .mini-bar:hover { background: rgba(29,185,84,0.06); }
     .mini-art {
-      width: 36px;
-      height: 36px;
+      width: 46px;
+      height: 46px;
       border-radius: 4px;
       overflow: hidden;
       flex-shrink: 0;
     }
     .mini-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .mini-meta { flex: 1; min-width: 0; }
-    .mini-title { font-size: 12px; font-weight: 500; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .mini-artist { font-size: 11px; color: rgba(255,255,255,0.45); }
+    .mini-title { font-size: 13px; font-weight: 500; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mini-artist { font-size: 12px; color: rgba(255,255,255,0.45); margin-top: 2px; }
     .mini-controls { display: flex; gap: 2px; }
     .mini-btn {
       background: none;
