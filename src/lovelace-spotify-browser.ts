@@ -87,11 +87,6 @@ export class SpotifyBrowserCard extends LitElement {
     } else {
       this._api.hass = hass;
     }
-    // Keep fallback state live as HA pushes Sonos state updates
-    if (!this._playbackState || !(this._playbackState as any)._fromSpotify) {
-      const fallback = this._sonosFallbackState();
-      if (fallback) this._playbackState = fallback;
-    }
   }
 
   static getConfigElement(): HTMLElement {

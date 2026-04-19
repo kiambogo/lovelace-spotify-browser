@@ -1890,10 +1890,7 @@ let x = class extends E {
     this._config = i, this.style.setProperty("--spotify-card-height", `${i.height ?? 500}px`);
   }
   set hass(i) {
-    if (this._hass = i, this._api ? this._api.hass = i : this._api = new It(i), !this._playbackState || !this._playbackState._fromSpotify) {
-      const t = this._sonosFallbackState();
-      t && (this._playbackState = t);
-    }
+    this._hass = i, this._api ? this._api.hass = i : this._api = new It(i);
   }
   static getConfigElement() {
     const i = document.createElement("div");
