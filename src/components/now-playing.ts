@@ -297,9 +297,9 @@ export class NowPlayingPanel extends LitElement {
       this.hass.callService('media_player', 'shuffle_set', {
         entity_id: this.sonosCoordinator,
         shuffle: this._shuffle,
-      }).then(() => this._emit()).catch(() => { /* ignore */ });
+      }).then(() => this._emit()).catch((err: unknown) => console.error('[Spotify Browser] Shuffle set failed:', err));
     } else if (this.api) {
-      try { await this.api.setShuffle(this._shuffle); this._emit(); } catch (_e) { /* ignore */ }
+      try { await this.api.setShuffle(this._shuffle); this._emit(); } catch (err) { console.error('[Spotify Browser] Shuffle set failed:', err); }
     }
   }
 
@@ -314,9 +314,9 @@ export class NowPlayingPanel extends LitElement {
       this.hass.callService('media_player', 'repeat_set', {
         entity_id: this.sonosCoordinator,
         repeat: haRepeat,
-      }).then(() => this._emit()).catch(() => { /* ignore */ });
+      }).then(() => this._emit()).catch((err: unknown) => console.error('[Spotify Browser] Repeat set failed:', err));
     } else if (this.api) {
-      try { await this.api.setRepeat(this._repeat); this._emit(); } catch (_e) { /* ignore */ }
+      try { await this.api.setRepeat(this._repeat); this._emit(); } catch (err) { console.error('[Spotify Browser] Repeat set failed:', err); }
     }
   }
 
@@ -331,9 +331,9 @@ export class NowPlayingPanel extends LitElement {
       this.hass.callService('media_player', 'media_seek', {
         entity_id: this.sonosCoordinator,
         seek_position: posMs / 1000,
-      }).then(() => this._emit()).catch(() => { /* ignore */ });
+      }).then(() => this._emit()).catch((err: unknown) => console.error('[Spotify Browser] Seek failed:', err));
     } else if (this.api) {
-      this.api.seek(posMs).then(() => this._emit()).catch(() => { /* ignore */ });
+      this.api.seek(posMs).then(() => this._emit()).catch((err: unknown) => console.error('[Spotify Browser] Seek failed:', err));
     }
   }
 

@@ -1,6 +1,6 @@
 # Lovelace Spotify Browser
 
-Browse and control Spotify directly from your Home Assistant dashboard — playlists, recently played, top tracks, search, device picker, and full transport controls.
+Browse and control Spotify directly from your Home Assistant dashboard — playlists, recently played, top tracks, search, and full transport controls.
 
 > Uses the official Spotify Web API via the OAuth token your HA Spotify integration already manages. No cookies, no undocumented APIs.
 
@@ -26,14 +26,16 @@ Or manually in HACS:
 3. Add a resource: **Settings → Dashboards → Resources → Add resource**
    - URL: `/local/lovelace-spotify-browser.js`
    - Type: JavaScript module
-4. Reload your browser
+4. Also copy the `custom_components/lovelace_spotify_browser/` directory to your HA `config/custom_components/` folder
+5. Restart Home Assistant
+6. Reload your browser
 
 ---
 
 ## Prerequisites
 
 - Home Assistant 2024.1+
-- The [Spotify integration](https://www.home-assistant.io/integrations/spotify/) configured — this creates the `media_player.spotify_*` entity the card reads from
+- The [Spotify integration](https://www.home-assistant.io/integrations/spotify/) installed and authenticated — go to **Settings → Integrations → Add Integration → Spotify**
 
 ---
 
@@ -41,25 +43,71 @@ Or manually in HACS:
 
 ```yaml
 type: custom:lovelace-spotify-browser
-spotify_entity: media_player.spotify_yourname   # required
-default_device: media_player.kitchen            # optional
 height: 600                                     # optional, default 500
+```
+
+### With Sonos speakers
+
+If you have Sonos speakers, add these options so the card can route playback commands correctly:
+
+```yaml
+type: custom:lovelace-spotify-browser
+sonos_coordinator_sensor: sensor.sonos_active_coordinator   # optional
+sonos_entities:                                              # optional
+  - media_player.living_room
+  - media_player.kitchen
+  - media_player.bedroom
+height: 600
 ```
 
 | Key | Required | Default | Description |
 |-----|----------|---------|-------------|
-| `spotify_entity` | yes | — | The `media_player` entity created by the HA Spotify integration |
-| `default_device` | no | active or first device | Playback target when no device is already active |
 | `height` | no | `500` | Card height in pixels |
+| `sonos_coordinator_sensor` | no | — | Sensor entity that reports the active Sonos coordinator (e.g. from the Sonos integration). When present, playback is routed through HA instead of the Spotify Web API. |
+| `sonos_entities` | no | `[]` | List of Sonos `media_player` entities. Used as a fallback to find a paused speaker when the coordinator sensor reports nothing. |
+
+> **Without Sonos config:** The card uses the Spotify Web API directly for all transport commands.
+>
+> **With Sonos config:** Transport commands (play, pause, next, previous, seek, shuffle, repeat) are routed through Home Assistant's `media_player` services, which is required for Sonos devices that reject direct Spotify API commands.
 
 ---
 
 ## Features
 
-- **Now Playing** — album art, track/artist/album, scrubable progress bar, play/pause/skip, volume slider, device picker
-- **Browse** — Playlists, Recently Played, Top Tracks, Search; tap any item to start playback
-- Follows your HA theme (light and dark)
-- Polls playback state every 5 seconds; stops when the card is off-screen
+- **Now Playing** — album art with blurred background, track/artist/album info, scrubbable progress bar, play/pause/skip/shuffle/repeat
+- **Playlists** — browse all your playlists with infinite scroll; tap to drill in, play, or shuffle
+- **Liked Songs** — appears as the first playlist entry
+- **Recently Played** — last 50 tracks
+- **Top Tracks** — your all-time top 50
+- **Search** — search tracks and playlists; tap to play or drill in
+- Polls playback state every 5 seconds; stops polling when the card is disconnected
+
+---
+
+## Troubleshooting
+
+### "Spotify integration not configured"
+
+The Spotify integration must be installed and authenticated first. Go to **Settings → Integrations → Add Integration → Spotify** and log in.
+
+### "Spotify token expired"
+
+Go to **Settings → Integrations → Spotify** and re-authenticate.
+
+### Card is blank or shows no content
+
+Check the browser console (F12) for errors. Common causes:
+- Custom component not installed (`custom_components/lovelace_spotify_browser/` missing)
+- Home Assistant not restarted after installing the custom component
+- Spotify integration not authenticated
+
+### "No active Spotify session"
+
+Appears when Spotify isn't currently playing on any device. Start playback from the Spotify app or web player and the card will pick it up within 5 seconds.
+
+### Sonos playback not working
+
+Make sure `sonos_coordinator_sensor` and `sonos_entities` are set in the card config (see above). Without these, the card routes commands through the Spotify Web API, which rejects transport commands on Sonos devices.
 
 ---
 
@@ -67,4 +115,4 @@ height: 600                                     # optional, default 500
 
 PRs welcome. Fork → branch from `main` → `npm install && npm run build` → commit the updated `dist/` file → open a PR.
 
-Bug reports: include your HA version, the Spotify entity ID (redact your username), and the browser console output.
+Bug reports: include your HA version, browser console output, and whether you're using Sonos.

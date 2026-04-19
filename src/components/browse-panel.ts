@@ -9,7 +9,7 @@ type DrillTarget =
 
 function _errMsg(e: unknown): string {
   if (e instanceof Error) return e.message;
-  if (e && typeof e === 'object' && 'message' in e) return String((e as any).message);
+  if (e && typeof e === 'object' && 'message' in e) return String((e as { message: unknown }).message);
   return String(e);
 }
 
@@ -438,7 +438,9 @@ export class BrowsePanel extends LitElement {
       if (!this.api) return;
       const resp = await this.api.getAlbumTracks(album.id);
       this._drillAlbumTracks = resp.items ?? [];
-    } catch (_e) { /* ignore */ } finally {
+    } catch (e) {
+      console.error('[Spotify Browser] Failed to load album tracks:', _errMsg(e));
+    } finally {
       this._drillLoading = false;
     }
   }
@@ -498,10 +500,10 @@ export class BrowsePanel extends LitElement {
         this._playlistsTotal = playlistsResp.total;
       } else if (tab === 'recently-played') {
         const resp = await this.api.getRecentlyPlayed();
-        this._recentTracks = (resp.items ?? []).map((i: any) => i.track).filter((t: any) => t && t.uri);
+        this._recentTracks = (resp.items ?? []).map(i => i.track).filter((t): t is SpotifyApi.Track => t != null && !!t.uri);
       } else if (tab === 'top-tracks') {
         const resp = await this.api.getTopTracks();
-        this._topTracks = (resp.items ?? []).filter((t: any) => t && t.uri);
+        this._topTracks = (resp.items ?? []).filter((t): t is SpotifyApi.Track => t != null && !!t.uri);
       }
     } catch (err) {
       this._error = _errMsg(err);
@@ -534,7 +536,9 @@ export class BrowsePanel extends LitElement {
       const fetched = (resp.items ?? []).filter((p): p is SpotifyApi.Playlist => p != null && p.uri != null);
       this._playlists = [...this._playlists, ...fetched];
       if (this._playlists.length - 1 >= this._playlistsTotal) this._playlistsObserver?.disconnect();
-    } catch (_e) { /* silently fail — user can scroll again */ } finally {
+    } catch (e) {
+      console.error('[Spotify Browser] Failed to load more playlists:', _errMsg(e));
+    } finally {
       this._playlistsLoadingMore = false;
     }
   }
@@ -567,7 +571,9 @@ export class BrowsePanel extends LitElement {
         this._drillPlaylistTracks = [...this._drillPlaylistTracks, ...tracks];
       }
       if (this._drillPlaylistTracks.length >= this._drillTotal) this._drillObserver?.disconnect();
-    } catch (_e) { /* silently fail */ } finally {
+    } catch (e) {
+      console.error('[Spotify Browser] Failed to load more tracks:', _errMsg(e));
+    } finally {
       this._drillLoadingMore = false;
     }
   }
@@ -634,32 +640,53 @@ export class BrowsePanel extends LitElement {
         media_content_type: mediaContentType,
       });
       return true;
-    } catch (_e) { return false; }
+    } catch (e) {
+      console.error('[Spotify Browser] HA play_media failed:', _errMsg(e));
+      return false;
+    }
   }
 
   private async _playPlaylist(playlist: SpotifyApi.Playlist, shuffle = false) {
+    const isLikedSongs = playlist.uri === 'spotify:collection';
     if (this.sonosCoordinator) {
+      if (isLikedSongs) {
+        // Sonos can't address spotify:collection — play via Spotify API instead
+        if (this.api) {
+          try {
+            await this.api.setShuffle(shuffle);
+            await this.api.play('spotify:user:me:collection');
+            this._emit();
+          } catch (_e) { /* ignore */ }
+        }
+        return;
+      }
       const ok = await this._playViaHa(playlist.uri, 'playlist', shuffle);
       if (ok) { this._emit(); return; }
     }
     if (!this.api) return;
     try {
       if (shuffle) await this.api.setShuffle(true);
-      await this.api.play(playlist.uri);
+      await this.api.play(isLikedSongs ? 'spotify:user:me:collection' : playlist.uri);
       this._emit();
-    } catch (_e) { /* ignore */ }
+    } catch (e) {
+      console.error('[Spotify Browser] Failed to play playlist:', _errMsg(e));
+    }
   }
 
   private async _playTrack(track: SpotifyApi.Track) {
     if (this.sonosCoordinator) {
-      const ok = await this._playViaHa(track.uri, 'music', false);
+      // Play via album context so queue continues after the track
+      const ok = await this._playViaHa(track.album.uri, 'album', false);
       if (ok) { this._emit(); return; }
     }
     if (!this.api) return;
     try {
-      await this.api.play(undefined, [track.uri]);
+      // Play the track within its album context so Spotify queues up more music
+      await this.api.play(track.album.uri, undefined, track.uri);
       this._emit();
-    } catch (_e) { /* ignore */ }
+    } catch (e) {
+      console.error('[Spotify Browser] Failed to play track:', _errMsg(e));
+    }
   }
 
   private async _playAlbum(album: SpotifyApi.Album, shuffle = false, _trackUri?: string) {
@@ -672,7 +699,9 @@ export class BrowsePanel extends LitElement {
       if (shuffle) await this.api.setShuffle(true);
       await this.api.play(album.uri, undefined, _trackUri);
       this._emit();
-    } catch (_e) { /* ignore */ }
+    } catch (e) {
+      console.error('[Spotify Browser] Failed to play album:', _errMsg(e));
+    }
   }
 
   private async _playAlbumTrack(trackUri: string) {
@@ -686,21 +715,37 @@ export class BrowsePanel extends LitElement {
       await this.api.setShuffle(false);
       await this.api.play(drill.album.uri, undefined, trackUri);
       this._emit();
-    } catch (_e) { /* ignore */ }
+    } catch (e) {
+      console.error('[Spotify Browser] Failed to play album track:', _errMsg(e));
+    }
   }
 
   private async _playPlaylistTrack(track: SpotifyApi.Track) {
     const drill = this._drill;
     if (!drill || drill.kind !== 'playlist') return;
+    const isLikedSongs = drill.playlist.uri === 'spotify:collection';
     if (this.sonosCoordinator) {
-      const ok = await this._playViaHa(track.uri, 'music', false);
-      if (ok) { this._emit(); return; }
+      if (isLikedSongs) {
+        // Sonos can't address spotify:collection — fall through to Spotify API
+      } else {
+        // Play the whole playlist starting at this track so queue continues
+        const ok = await this._playViaHa(drill.playlist.uri, 'playlist', false);
+        if (ok) { this._emit(); return; }
+      }
     }
     if (!this.api) return;
     try {
-      await this.api.play(drill.playlist.uri, undefined, track.uri);
+      if (isLikedSongs) {
+        // spotify:collection isn't a valid context_uri — play the track directly.
+        // Spotify will queue up similar tracks automatically.
+        await this.api.play(undefined, [track.uri]);
+      } else {
+        await this.api.play(drill.playlist.uri, undefined, track.uri);
+      }
       this._emit();
-    } catch (_e) { /* ignore */ }
+    } catch (e) {
+      console.error('[Spotify Browser] Failed to play playlist track:', _errMsg(e));
+    }
   }
 
   private _emit() {
@@ -739,7 +784,7 @@ export class BrowsePanel extends LitElement {
         <button class="back-btn" @click=${() => { this._drill = null; this._drillAlbumTracks = []; this._drillPlaylistTracks = []; this._drillObserver?.disconnect(); }}>${svgBack}</button>
         ${thumbUrl ? html`<img class="drill-thumb" src=${thumbUrl} alt="" />` : nothing}
         <div class="drill-info">
-          <div class="drill-title">${(item as any).name}</div>
+          <div class="drill-title">${item.name}</div>
           <div class="drill-sub">${subLabel}</div>
         </div>
       </div>

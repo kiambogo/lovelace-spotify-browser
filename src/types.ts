@@ -27,6 +27,8 @@ export interface SpotifyBrowserCardConfig {
   spotify_entity?: string;
   default_device?: string;
   height?: number;
+  sonos_coordinator_sensor?: string;
+  sonos_entities?: string[];
 }
 
 // Spotify API types

@@ -9,14 +9,16 @@ import { SpotifyApi } from './spotify-api.js';
 import './components/now-playing.js';
 import './components/browse-panel.js';
 
-const SONOS_COORDINATOR_SENSOR = 'sensor.sonos_active_coordinator';
-const SONOS_ENTITIES = [
-  'media_player.kitchen',
-  'media_player.sonos_move',
-  'media_player.living_room',
-  'media_player.garage',
-  'media_player.patio',
-];
+interface HassMediaPlayerAttributes {
+  media_title?: string;
+  media_artist?: string;
+  media_duration?: number;
+  media_position?: number;
+  entity_picture?: string;
+  volume_level?: number;
+  shuffle?: boolean;
+  repeat?: 'off' | 'context' | 'track';
+}
 
 @customElement('lovelace-spotify-browser')
 export class SpotifyBrowserCard extends LitElement {
@@ -141,12 +143,12 @@ export class SpotifyBrowserCard extends LitElement {
       this._error = '';
       const raw = await this._api.getCurrentPlayback();
       // 204 No Content comes back as {} — treat as no active session
-      let state: SpotifyApi.PlaybackState | null = (raw && (raw as any).item) ? raw : null;
-      if (state) {
-        (state as any)._fromSpotify = true;
-        this._playbackState = state;
+      const hasItem = raw && typeof raw === 'object' && 'item' in raw && (raw as SpotifyApi.PlaybackState).item != null;
+      let spotifyState: SpotifyApi.PlaybackState | null = hasItem ? (raw as SpotifyApi.PlaybackState) : null;
+      if (spotifyState) {
+        this._playbackState = spotifyState;
       } else {
-        // Don't overwrite a live Sonos fallback with null — only clear if we get a real Spotify response
+        // No active Spotify session — try Sonos fallback
         const fallback = this._sonosFallbackState();
         this._playbackState = fallback ?? null;
       }
@@ -164,9 +166,11 @@ export class SpotifyBrowserCard extends LitElement {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('token_expired') || msg.includes('401')) {
-        this._error = 'Spotify token expired. Re-authenticate in Home Assistant.';
+        this._error = 'Spotify token expired. Go to Settings → Integrations → Spotify to re-authenticate.';
       } else if (msg.includes('no_spotify_entry')) {
-        this._error = 'Spotify integration not configured.';
+        this._error = 'Spotify integration not configured. Install it under Settings → Integrations.';
+      } else {
+        this._error = `Spotify error: ${msg}`;
       }
     }
   }
@@ -176,7 +180,7 @@ export class SpotifyBrowserCard extends LitElement {
     if (!coordinator || !this._hass) return null;
     const entity = this._hass.states[coordinator];
     if (!entity || !['playing', 'paused'].includes(entity.state)) return null;
-    const attr = entity.attributes as any;
+    const attr = entity.attributes as HassMediaPlayerAttributes;
     const title = attr.media_title;
     const artist = attr.media_artist;
     const duration = attr.media_duration ? Math.round(attr.media_duration * 1000) : 0;
@@ -210,18 +214,25 @@ export class SpotifyBrowserCard extends LitElement {
     setTimeout(() => this._fetchState(), 3000);
   }
 
-  // Returns the relevant Sonos entity for transport commands.
-  // Prefers the active coordinator (playing), falls back to any paused Sonos speaker.
+  // Returns the active Sonos coordinator entity ID, or null if Sonos is not configured/active.
+  // Prefers the coordinator sensor (playing), falls back to any paused speaker from the configured list.
   private _sonosCoordinator(): string | null {
-    const active = this._hass?.states[SONOS_COORDINATOR_SENSOR]?.state;
-    if (active && active !== 'unknown' && active !== 'unavailable' && active !== '') {
-      return active;
+    if (!this._config) return null;
+    const sensorId = this._config.sonos_coordinator_sensor;
+    const entities = this._config.sonos_entities ?? [];
+    if (!sensorId && entities.length === 0) return null;
+
+    if (sensorId && this._hass) {
+      const active = this._hass.states[sensorId]?.state;
+      if (active && active !== 'unknown' && active !== 'unavailable' && active !== '') {
+        return active;
+      }
     }
-    // Coordinator sensor is empty when paused — find first paused Sonos speaker.
+    // Coordinator sensor is empty when paused — find first paused speaker from configured list
     if (this._hass) {
-      for (const entity of SONOS_ENTITIES) {
-        const state = this._hass.states[entity]?.state;
-        if (state === 'paused') return entity;
+      for (const entity of entities) {
+        const entityState = this._hass.states[entity]?.state;
+        if (entityState === 'paused') return entity;
       }
     }
     return null;
@@ -256,7 +267,7 @@ export class SpotifyBrowserCard extends LitElement {
       if (service) {
         this._hass.callService('media_player', service, { entity_id: coordinator })
           .then(() => this._onPlaybackChanged())
-          .catch(() => { /* ignore */ });
+          .catch((err: unknown) => console.error('[Spotify Browser] Transport command failed:', err));
       }
       return;
     }
@@ -265,18 +276,17 @@ export class SpotifyBrowserCard extends LitElement {
     if (!this._api) return;
     if (action === 'play-pause') {
       const p = this._playbackState?.is_playing ? this._api.pause() : this._api.play();
-      p.then(() => this._onPlaybackChanged()).catch(() => { /* ignore */ });
+      p.then(() => this._onPlaybackChanged()).catch((err: unknown) => console.error('[Spotify Browser] Play/pause failed:', err));
     } else if (action === 'next') {
-      this._api.next().then(() => this._onPlaybackChanged()).catch(() => { /* ignore */ });
+      this._api.next().then(() => this._onPlaybackChanged()).catch((err: unknown) => console.error('[Spotify Browser] Next failed:', err));
     } else if (action === 'prev') {
-      this._api.previous().then(() => this._onPlaybackChanged()).catch(() => { /* ignore */ });
+      this._api.previous().then(() => this._onPlaybackChanged()).catch((err: unknown) => console.error('[Spotify Browser] Previous failed:', err));
     }
   }
 
   render() {
     if (!this._config) return nothing;
 
-    const height = this._config.height ?? 500;
     const pb = this._playbackState;
     const track = pb?.item;
     const imageUrl = track?.album?.images?.[0]?.url ?? null;
