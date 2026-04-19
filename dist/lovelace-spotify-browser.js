@@ -1938,7 +1938,7 @@ let x = class extends E {
     if (!i || !this._hass) return null;
     const t = this._hass.states[i];
     if (!t || !["playing", "paused"].includes(t.state)) return null;
-    const e = t.attributes, s = e.media_title, r = e.media_artist, a = e.media_duration ? Math.round(e.media_duration * 1e3) : 0, o = e.media_position ? Math.round(e.media_position * 1e3) : 0, l = e.entity_picture ? e.entity_picture.startsWith("http") ? e.entity_picture : `http://192.168.1.11:8123${e.entity_picture}` : null;
+    const e = t.attributes, s = e.media_title, r = e.media_artist, a = e.media_duration ? Math.round(e.media_duration * 1e3) : 0, o = e.media_position ? Math.round(e.media_position * 1e3) : 0, l = e.entity_picture ? e.entity_picture.startsWith("http") ? e.entity_picture : `${window.location.origin}${e.entity_picture}` : null;
     return s ? {
       is_playing: t.state === "playing",
       progress_ms: o,

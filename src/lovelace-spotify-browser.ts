@@ -175,7 +175,7 @@ export class SpotifyBrowserCard extends LitElement {
     const duration = attr.media_duration ? Math.round(attr.media_duration * 1000) : 0;
     const position = attr.media_position ? Math.round(attr.media_position * 1000) : 0;
     const imageUrl = attr.entity_picture
-      ? (attr.entity_picture.startsWith('http') ? attr.entity_picture : `http://192.168.1.11:8123${attr.entity_picture}`)
+      ? (attr.entity_picture.startsWith('http') ? attr.entity_picture : `${window.location.origin}${attr.entity_picture}`)
       : null;
     if (!title) return null;
     return {
