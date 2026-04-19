@@ -284,9 +284,9 @@ z.elementStyles = [], z.shadowRootOptions = { mode: "open" }, z[H("elementProper
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const B = globalThis, ht = (i) => i, W = B.trustedTypes, ct = W ? W.createPolicy("lit-html", { createHTML: (i) => i }) : void 0, bt = "$lit$", k = `lit$${Math.random().toFixed(9).slice(2)}$`, yt = "?" + k, Ot = `<${yt}>`, M = document, U = () => M.createComment(""), N = (i) => i === null || typeof i != "object" && typeof i != "function", st = Array.isArray, zt = (i) => st(i) || typeof (i == null ? void 0 : i[Symbol.iterator]) == "function", Y = `[ 	
+const U = globalThis, ht = (i) => i, W = U.trustedTypes, ct = W ? W.createPolicy("lit-html", { createHTML: (i) => i }) : void 0, bt = "$lit$", k = `lit$${Math.random().toFixed(9).slice(2)}$`, yt = "?" + k, Ot = `<${yt}>`, M = document, B = () => M.createComment(""), N = (i) => i === null || typeof i != "object" && typeof i != "function", st = Array.isArray, zt = (i) => st(i) || typeof (i == null ? void 0 : i[Symbol.iterator]) == "function", Y = `[ 	
 \f\r]`, R = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, pt = /-->/g, dt = />/g, A = RegExp(`>|${Y}(?:([^\\s"'>=/]+)(${Y}*=${Y}*(?:[^ 	
-\f\r"'\`<>=]|("|')|))|$)`, "g"), ut = /'/g, _t = /"/g, vt = /^(?:script|style|textarea|title)$/i, $t = (i) => (t, ...e) => ({ _$litType$: i, strings: t, values: e }), h = $t(1), b = $t(2), L = Symbol.for("lit-noChange"), p = Symbol.for("lit-nothing"), ft = /* @__PURE__ */ new WeakMap(), P = M.createTreeWalker(M, 129);
+\f\r"'\`<>=]|("|')|))|$)`, "g"), ut = /'/g, ft = /"/g, vt = /^(?:script|style|textarea|title)$/i, $t = (i) => (t, ...e) => ({ _$litType$: i, strings: t, values: e }), h = $t(1), b = $t(2), L = Symbol.for("lit-noChange"), p = Symbol.for("lit-nothing"), _t = /* @__PURE__ */ new WeakMap(), P = M.createTreeWalker(M, 129);
 function xt(i, t) {
   if (!st(i) || !i.hasOwnProperty("raw")) throw Error("invalid template strings array");
   return ct !== void 0 ? ct.createHTML(t) : t;
@@ -297,7 +297,7 @@ const Lt = (i, t) => {
   for (let l = 0; l < e; l++) {
     const n = i[l];
     let u, c, d = -1, m = 0;
-    for (; m < n.length && (o.lastIndex = m, c = o.exec(n), c !== null); ) m = o.lastIndex, o === R ? c[1] === "!--" ? o = pt : c[1] !== void 0 ? o = dt : c[2] !== void 0 ? (vt.test(c[2]) && (r = RegExp("</" + c[2], "g")), o = A) : c[3] !== void 0 && (o = A) : o === A ? c[0] === ">" ? (o = r ?? R, d = -1) : c[1] === void 0 ? d = -2 : (d = o.lastIndex - c[2].length, u = c[1], o = c[3] === void 0 ? A : c[3] === '"' ? _t : ut) : o === _t || o === ut ? o = A : o === pt || o === dt ? o = R : (o = A, r = void 0);
+    for (; m < n.length && (o.lastIndex = m, c = o.exec(n), c !== null); ) m = o.lastIndex, o === R ? c[1] === "!--" ? o = pt : c[1] !== void 0 ? o = dt : c[2] !== void 0 ? (vt.test(c[2]) && (r = RegExp("</" + c[2], "g")), o = A) : c[3] !== void 0 && (o = A) : o === A ? c[0] === ">" ? (o = r ?? R, d = -1) : c[1] === void 0 ? d = -2 : (d = o.lastIndex - c[2].length, u = c[1], o = c[3] === void 0 ? A : c[3] === '"' ? ft : ut) : o === ft || o === ut ? o = A : o === pt || o === dt ? o = R : (o = A, r = void 0);
     const w = o === A && i[l + 1].startsWith("/>") ? " " : "";
     a += o === R ? n + Ot : d >= 0 ? (s.push(u), n.slice(0, d) + bt + n.slice(d) + k + w) : n + k + (d === -2 ? l : w);
   }
@@ -317,14 +317,14 @@ class q {
       if (r.nodeType === 1) {
         if (r.hasAttributes()) for (const d of r.getAttributeNames()) if (d.endsWith(bt)) {
           const m = c[o++], w = r.getAttribute(d).split(k), I = /([.?@])?(.*)/.exec(m);
-          n.push({ type: 1, index: a, name: I[2], strings: w, ctor: I[1] === "." ? Rt : I[1] === "?" ? Ht : I[1] === "@" ? Bt : Q }), r.removeAttribute(d);
+          n.push({ type: 1, index: a, name: I[2], strings: w, ctor: I[1] === "." ? Rt : I[1] === "?" ? Ht : I[1] === "@" ? Ut : Q }), r.removeAttribute(d);
         } else d.startsWith(k) && (n.push({ type: 6, index: a }), r.removeAttribute(d));
         if (vt.test(r.tagName)) {
           const d = r.textContent.split(k), m = d.length - 1;
           if (m > 0) {
             r.textContent = W ? W.emptyScript : "";
-            for (let w = 0; w < m; w++) r.append(d[w], U()), P.nextNode(), n.push({ type: 2, index: ++a });
-            r.append(d[m], U());
+            for (let w = 0; w < m; w++) r.append(d[w], B()), P.nextNode(), n.push({ type: 2, index: ++a });
+            r.append(d[m], B());
           }
         }
       } else if (r.nodeType === 8) if (r.data === yt) n.push({ type: 2, index: a });
@@ -364,7 +364,7 @@ class Dt {
     for (; n !== void 0; ) {
       if (o === n.index) {
         let u;
-        n.type === 2 ? u = new j(a, a.nextSibling, this, t) : n.type === 1 ? u = new n.ctor(a, n.name, n.strings, this, t) : n.type === 6 && (u = new Ut(a, this, t)), this._$AV.push(u), n = s[++l];
+        n.type === 2 ? u = new j(a, a.nextSibling, this, t) : n.type === 1 ? u = new n.ctor(a, n.name, n.strings, this, t) : n.type === 6 && (u = new Bt(a, this, t)), this._$AV.push(u), n = s[++l];
       }
       o !== (n == null ? void 0 : n.index) && (a = P.nextNode(), o++);
     }
@@ -416,14 +416,14 @@ class j {
     }
   }
   _$AC(t) {
-    let e = ft.get(t.strings);
-    return e === void 0 && ft.set(t.strings, e = new q(t)), e;
+    let e = _t.get(t.strings);
+    return e === void 0 && _t.set(t.strings, e = new q(t)), e;
   }
   k(t) {
     st(this._$AH) || (this._$AH = [], this._$AR());
     const e = this._$AH;
     let s, r = 0;
-    for (const a of t) r === e.length ? e.push(s = new j(this.O(U()), this.O(U()), this, this.options)) : s = e[r], s._$AI(a), r++;
+    for (const a of t) r === e.length ? e.push(s = new j(this.O(B()), this.O(B()), this, this.options)) : s = e[r], s._$AI(a), r++;
     r < e.length && (this._$AR(s && s._$AB.nextSibling, r), e.length = r);
   }
   _$AR(t = this._$AA.nextSibling, e) {
@@ -479,7 +479,7 @@ class Ht extends Q {
     this.element.toggleAttribute(this.name, !!t && t !== p);
   }
 }
-class Bt extends Q {
+class Ut extends Q {
   constructor(t, e, s, r, a) {
     super(t, e, s, r, a), this.type = 5;
   }
@@ -493,7 +493,7 @@ class Bt extends Q {
     typeof this._$AH == "function" ? this._$AH.call(((e = this.options) == null ? void 0 : e.host) ?? this.element, t) : this._$AH.handleEvent(t);
   }
 }
-class Ut {
+class Bt {
   constructor(t, e, s) {
     this.element = t, this.type = 6, this._$AN = void 0, this._$AM = e, this.options = s;
   }
@@ -504,14 +504,14 @@ class Ut {
     D(this, t);
   }
 }
-const Z = B.litHtmlPolyfillSupport;
-Z == null || Z(q, j), (B.litHtmlVersions ?? (B.litHtmlVersions = [])).push("3.3.2");
+const Z = U.litHtmlPolyfillSupport;
+Z == null || Z(q, j), (U.litHtmlVersions ?? (U.litHtmlVersions = [])).push("3.3.2");
 const Nt = (i, t, e) => {
   const s = (e == null ? void 0 : e.renderBefore) ?? t;
   let r = s._$litPart$;
   if (r === void 0) {
     const a = (e == null ? void 0 : e.renderBefore) ?? null;
-    s._$litPart$ = r = new j(t.insertBefore(U(), a), a, void 0, e ?? {});
+    s._$litPart$ = r = new j(t.insertBefore(B(), a), a, void 0, e ?? {});
   }
   return r._$AI(i), r;
 };
@@ -598,7 +598,7 @@ function v(i) {
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-function _(i) {
+function f(i) {
   return v({ ...i, state: !0, attribute: !1 });
 }
 class It {
@@ -830,7 +830,9 @@ let y = class extends E {
 };
 y.styles = et`
     :host {
-      display: block;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
       position: relative;
       background: #0a0a0a;
       color: #fff;
@@ -855,8 +857,11 @@ y.styles = et`
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 20px 20px 16px;
+      justify-content: space-between;
+      flex: 1;
+      padding: 20px 20px 24px;
       gap: 0;
+      box-sizing: border-box;
     }
 
     /* Header row */
@@ -1087,16 +1092,16 @@ $([
   v({ attribute: !1 })
 ], y.prototype, "progressMs", 2);
 $([
-  _()
+  f()
 ], y.prototype, "_seekDragging", 2);
 $([
-  _()
+  f()
 ], y.prototype, "_seekValue", 2);
 $([
-  _()
+  f()
 ], y.prototype, "_shuffle", 2);
 $([
-  _()
+  f()
 ], y.prototype, "_repeat", 2);
 y = $([
   rt("spotify-now-playing")
@@ -1110,9 +1115,9 @@ var te = Object.defineProperty, ee = Object.getOwnPropertyDescriptor, g = (i, t,
 function K(i) {
   return i instanceof Error ? i.message : i && typeof i == "object" && "message" in i ? String(i.message) : String(i);
 }
-let f = class extends E {
+let _ = class extends E {
   constructor() {
-    super(...arguments), this.api = null, this.initialAlbum = null, this.hass = null, this.sonosCoordinator = null, this._activeTab = "playlists", this._playlists = [], this._playlistsTotal = 0, this._playlistsLoadingMore = !1, this._recentTracks = [], this._topTracks = [], this._searchResults = { tracks: [], playlists: [] }, this._searchQuery = "", this._loading = !1, this._searchLoading = !1, this._error = "", this._drill = null, this._drillAlbumTracks = [], this._drillPlaylistTracks = [], this._drillTotal = 0, this._drillLoadingMore = !1, this._drillLoading = !1, this._searchDebounceTimer = null, this._searchSeq = 0, this._playlistsObserver = null, this._drillObserver = null;
+    super(...arguments), this.api = null, this.initialAlbum = null, this.hass = null, this.sonosCoordinator = null, this.artworkUrl = null, this.isPlaying = !1, this._activeTab = "playlists", this._playlists = [], this._playlistsTotal = 0, this._playlistsLoadingMore = !1, this._recentTracks = [], this._topTracks = [], this._searchResults = { tracks: [], playlists: [] }, this._searchQuery = "", this._loading = !1, this._searchLoading = !1, this._error = "", this._drill = null, this._drillAlbumTracks = [], this._drillPlaylistTracks = [], this._drillTotal = 0, this._drillLoadingMore = !1, this._drillLoading = !1, this._searchDebounceTimer = null, this._searchSeq = 0, this._playlistsObserver = null, this._drillObserver = null;
   }
   connectedCallback() {
     super.connectedCallback(), this._loadTab(this._activeTab);
@@ -1371,7 +1376,7 @@ let f = class extends E {
         <button class="back-btn" @click=${() => {
       var c;
       this._drill = null, this._drillAlbumTracks = [], this._drillPlaylistTracks = [], (c = this._drillObserver) == null || c.disconnect();
-    }}>${re}</button>
+    }}>${ae}</button>
         ${r ? h`<img class="drill-thumb" src=${r} alt="" />` : p}
         <div class="drill-info">
           <div class="drill-title">${e.name}</div>
@@ -1391,7 +1396,7 @@ let f = class extends E {
           class="drill-action-btn btn-shuffle"
           @click=${() => t ? this._playAlbum(i.album, !0) : this._playPlaylist(i.playlist, !0)}
         >
-          <span class="btn-icon">${oe}</span>
+          <span class="btn-icon">${ne}</span>
           Shuffle
         </button>
       </div>
@@ -1447,7 +1452,7 @@ let f = class extends E {
       const t = i.uri === "spotify:collection", e = t ? ((s = i.tracks) == null ? void 0 : s.total) != null ? `${i.tracks.total} liked songs` : "Your liked songs" : ((r = i.owner) == null ? void 0 : r.display_name) ?? "";
       return h`
           <div class="item" @click=${() => this._openPlaylistDrill(i)}>
-            ${this._thumb(i.images, !t, t ? ne : void 0, t ? "liked" : "")}
+            ${this._thumb(i.images, !t, t ? le : void 0, t ? "liked" : "")}
             <div class="item-info">
               <div class="item-name">${i.name}</div>
               <div class="item-sub">${e}</div>
@@ -1493,7 +1498,7 @@ let f = class extends E {
     return h`
       <div class="search-box">
         <div class="search-inner">
-          <span class="search-icon">${ae}</span>
+          <span class="search-icon">${oe}</span>
           <input
             class="search-input"
             type="search"
@@ -1568,22 +1573,25 @@ let f = class extends E {
   _renderMiniBar() {
     return h`
       <div class="mini-bar" @click=${() => this.dispatchEvent(new CustomEvent("show-now-playing", { bubbles: !0, composed: !0 }))}>
-        <div class="mini-art">
-          <slot name="mini-art"></slot>
-        </div>
-        <div class="mini-meta">
-          <slot name="mini-title"></slot>
-        </div>
-        <div class="mini-controls">
-          <button class="mini-btn" @click=${(i) => {
+        ${this.artworkUrl ? h`<div class="mini-bar-bg" style="background-image:url('${this.artworkUrl}')"></div>` : p}
+        <div class="mini-bar-content">
+          <div class="mini-art">
+            <slot name="mini-art"></slot>
+          </div>
+          <div class="mini-meta">
+            <slot name="mini-title"></slot>
+          </div>
+          <div class="mini-controls">
+            <button class="mini-btn skip" @click=${(i) => {
       i.stopPropagation(), this._emitControl("prev");
-    }}>${ie}</button>
-          <button class="mini-btn play" @click=${(i) => {
-      i.stopPropagation(), this._emitControl("play-pause");
-    }}>${T}</button>
-          <button class="mini-btn" @click=${(i) => {
-      i.stopPropagation(), this._emitControl("next");
     }}>${se}</button>
+            <button class="mini-btn play" @click=${(i) => {
+      i.stopPropagation(), this._emitControl("play-pause");
+    }}>${this.isPlaying ? ie : T}</button>
+            <button class="mini-btn skip" @click=${(i) => {
+      i.stopPropagation(), this._emitControl("next");
+    }}>${re}</button>
+          </div>
         </div>
       </div>
     `;
@@ -1592,7 +1600,7 @@ let f = class extends E {
     this.dispatchEvent(new CustomEvent("mini-control", { detail: { action: i }, bubbles: !0, composed: !0 }));
   }
 };
-f.styles = et`
+_.styles = et`
     :host {
       display: flex;
       flex-direction: column;
@@ -1873,16 +1881,38 @@ f.styles = et`
     /* ── Mini now-playing bar ── */
     .mini-bar {
       border-top: 2px solid #1DB954;
-      padding: 12px 14px 14px;
+      padding: 10px 14px 10px;
+      min-height: 60px;
+      box-sizing: border-box;
       display: flex;
       align-items: center;
       gap: 12px;
       background: rgba(0,0,0,0.6);
       cursor: pointer;
       flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
       transition: background 0.15s;
     }
-    .mini-bar:hover { background: rgba(29,185,84,0.06); }
+    .mini-bar-bg {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      filter: blur(30px) saturate(2) brightness(0.2);
+      transform: scale(1.4);
+      pointer-events: none;
+      transition: background-image 0.6s ease;
+    }
+    .mini-bar-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+    }
+    .mini-bar:hover .mini-bar-bg { filter: blur(30px) saturate(2) brightness(0.28); }
     .mini-art {
       width: 46px;
       height: 46px;
@@ -1910,11 +1940,18 @@ f.styles = et`
       transition: color 0.15s, background 0.15s;
     }
     .mini-btn:hover { color: #fff; background: rgba(255,255,255,0.07); }
+    .mini-btn.skip {
+      width: 34px;
+      height: 34px;
+      padding: 6px;
+      color: rgba(255,255,255,0.7);
+    }
+    .mini-btn.skip:hover { color: #fff; }
     .mini-btn.play {
       background: #1DB954;
       color: #000;
-      width: 28px;
-      height: 28px;
+      width: 32px;
+      height: 32px;
     }
     .mini-btn.play:hover { background: #1ed760; }
 
@@ -1930,79 +1967,83 @@ f.styles = et`
   `;
 g([
   v({ attribute: !1 })
-], f.prototype, "api", 2);
+], _.prototype, "api", 2);
 g([
   v({ attribute: !1 })
-], f.prototype, "initialAlbum", 2);
+], _.prototype, "initialAlbum", 2);
 g([
   v({ attribute: !1 })
-], f.prototype, "hass", 2);
+], _.prototype, "hass", 2);
 g([
   v({ attribute: !1 })
-], f.prototype, "sonosCoordinator", 2);
+], _.prototype, "sonosCoordinator", 2);
 g([
-  _()
-], f.prototype, "_activeTab", 2);
+  v({ attribute: !1 })
+], _.prototype, "artworkUrl", 2);
 g([
-  _()
-], f.prototype, "_playlists", 2);
+  v({ attribute: !1 })
+], _.prototype, "isPlaying", 2);
 g([
-  _()
-], f.prototype, "_playlistsTotal", 2);
+  f()
+], _.prototype, "_activeTab", 2);
 g([
-  _()
-], f.prototype, "_playlistsLoadingMore", 2);
+  f()
+], _.prototype, "_playlists", 2);
 g([
-  _()
-], f.prototype, "_recentTracks", 2);
+  f()
+], _.prototype, "_playlistsTotal", 2);
 g([
-  _()
-], f.prototype, "_topTracks", 2);
+  f()
+], _.prototype, "_playlistsLoadingMore", 2);
 g([
-  _()
-], f.prototype, "_searchResults", 2);
+  f()
+], _.prototype, "_recentTracks", 2);
 g([
-  _()
-], f.prototype, "_searchQuery", 2);
+  f()
+], _.prototype, "_topTracks", 2);
 g([
-  _()
-], f.prototype, "_loading", 2);
+  f()
+], _.prototype, "_searchResults", 2);
 g([
-  _()
-], f.prototype, "_searchLoading", 2);
+  f()
+], _.prototype, "_searchQuery", 2);
 g([
-  _()
-], f.prototype, "_error", 2);
+  f()
+], _.prototype, "_loading", 2);
 g([
-  _()
-], f.prototype, "_drill", 2);
+  f()
+], _.prototype, "_searchLoading", 2);
 g([
-  _()
-], f.prototype, "_drillAlbumTracks", 2);
+  f()
+], _.prototype, "_error", 2);
 g([
-  _()
-], f.prototype, "_drillPlaylistTracks", 2);
+  f()
+], _.prototype, "_drill", 2);
 g([
-  _()
-], f.prototype, "_drillTotal", 2);
+  f()
+], _.prototype, "_drillAlbumTracks", 2);
 g([
-  _()
-], f.prototype, "_drillLoadingMore", 2);
+  f()
+], _.prototype, "_drillPlaylistTracks", 2);
 g([
-  _()
-], f.prototype, "_drillLoading", 2);
-f = g([
+  f()
+], _.prototype, "_drillTotal", 2);
+g([
+  f()
+], _.prototype, "_drillLoadingMore", 2);
+g([
+  f()
+], _.prototype, "_drillLoading", 2);
+_ = g([
   rt("spotify-browse-panel")
-], f);
-const T = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M8 5v14l11-7z"/></svg>`;
-b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
-const ie = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>`, se = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 4V8zM16 6h2v12h-2z"/></svg>`, re = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>`, ae = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>`, oe = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M10.59 9.17 5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>`, ne = b`<svg viewBox="0 0 24 24" fill="#1DB954" width="20" height="20"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
-var le = Object.defineProperty, he = Object.getOwnPropertyDescriptor, O = (i, t, e, s) => {
-  for (var r = s > 1 ? void 0 : s ? he(t, e) : t, a = i.length - 1, o; a >= 0; a--)
+], _);
+const T = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M8 5v14l11-7z"/></svg>`, ie = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`, se = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>`, re = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 4V8zM16 6h2v12h-2z"/></svg>`, ae = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>`, oe = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>`, ne = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M10.59 9.17 5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>`, le = b`<svg viewBox="0 0 24 24" fill="#1DB954" width="20" height="20"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
+var he = Object.defineProperty, ce = Object.getOwnPropertyDescriptor, O = (i, t, e, s) => {
+  for (var r = s > 1 ? void 0 : s ? ce(t, e) : t, a = i.length - 1, o; a >= 0; a--)
     (o = i[a]) && (r = (s ? o(t, e, r) : o(r)) || r);
-  return s && r && le(t, e, r), r;
+  return s && r && he(t, e, r), r;
 };
-const ce = "sensor.sonos_active_coordinator", pe = [
+const pe = "sensor.sonos_active_coordinator", de = [
   "media_player.kitchen",
   "media_player.sonos_move",
   "media_player.living_room",
@@ -2011,7 +2052,7 @@ const ce = "sensor.sonos_active_coordinator", pe = [
 ];
 let x = class extends E {
   constructor() {
-    super(...arguments), this._config = null, this._playbackState = null, this._progressMs = 0, this._view = "now-playing", this._error = "", this._pendingAlbumDrill = null, this._hass = null, this._api = null, this._pollInterval = null, this._progressInterval = null, this._progressBaseMs = 0, this._progressBaseTime = 0;
+    super(...arguments), this._config = null, this._playbackState = null, this._progressMs = 0, this._view = "now-playing", this._error = "", this._pendingAlbumDrill = null, this._hass = null, this._api = null, this._pollInterval = null, this._progressInterval = null, this._progressBaseMs = 0, this._progressBaseTime = 0, this._progressTrackId = "";
   }
   setConfig(i) {
     this._config = i, this.style.setProperty("--spotify-card-height", `${i.height ?? 500}px`);
@@ -2045,22 +2086,23 @@ let x = class extends E {
     this._pollInterval !== null && (clearInterval(this._pollInterval), this._pollInterval = null), this._progressInterval !== null && (clearInterval(this._progressInterval), this._progressInterval = null);
   }
   async _fetchState() {
-    var i;
+    var i, t, e, s, r;
     if (this._api)
       try {
         this._error = "";
-        const t = await this._api.getCurrentPlayback();
-        let e = t && t.item ? t : null;
-        if (e)
-          e._fromSpotify = !0, this._playbackState = e;
+        const a = await this._api.getCurrentPlayback();
+        let o = a && a.item ? a : null;
+        if (o)
+          o._fromSpotify = !0, this._playbackState = o;
         else {
-          const s = this._sonosFallbackState();
-          this._playbackState = s ?? null;
+          const d = this._sonosFallbackState();
+          this._playbackState = d ?? null;
         }
-        this._progressBaseMs = ((i = this._playbackState) == null ? void 0 : i.progress_ms) ?? 0, this._progressBaseTime = Date.now(), this._progressMs = this._progressBaseMs;
-      } catch (t) {
-        const e = t instanceof Error ? t.message : String(t);
-        e.includes("token_expired") || e.includes("401") ? this._error = "Spotify token expired. Re-authenticate in Home Assistant." : e.includes("no_spotify_entry") && (this._error = "Spotify integration not configured.");
+        const l = ((t = (i = this._playbackState) == null ? void 0 : i.item) == null ? void 0 : t.id) ?? ((s = (e = this._playbackState) == null ? void 0 : e.item) == null ? void 0 : s.name) ?? "", n = ((r = this._playbackState) == null ? void 0 : r.progress_ms) ?? 0, u = l !== this._progressTrackId, c = Math.abs(n - this._progressMs);
+        (u || c > 3e3) && (this._progressBaseMs = n, this._progressBaseTime = Date.now(), this._progressMs = n, this._progressTrackId = l);
+      } catch (a) {
+        const o = a instanceof Error ? a.message : String(a);
+        o.includes("token_expired") || o.includes("401") ? this._error = "Spotify token expired. Re-authenticate in Home Assistant." : o.includes("no_spotify_entry") && (this._error = "Spotify integration not configured.");
       }
   }
   _sonosFallbackState() {
@@ -2093,11 +2135,11 @@ let x = class extends E {
   // Prefers the active coordinator (playing), falls back to any paused Sonos speaker.
   _sonosCoordinator() {
     var t, e, s;
-    const i = (e = (t = this._hass) == null ? void 0 : t.states[ce]) == null ? void 0 : e.state;
+    const i = (e = (t = this._hass) == null ? void 0 : t.states[pe]) == null ? void 0 : e.state;
     if (i && i !== "unknown" && i !== "unavailable" && i !== "")
       return i;
     if (this._hass) {
-      for (const r of pe)
+      for (const r of de)
         if (((s = this._hass.states[r]) == null ? void 0 : s.state) === "paused") return r;
     }
     return null;
@@ -2131,11 +2173,12 @@ let x = class extends E {
     }));
   }
   render() {
-    var a, o, l, n;
+    var r, a, o, l;
     if (!this._config) return p;
-    const i = this._config.height ?? 500, t = this._playbackState, e = t == null ? void 0 : t.item, s = ((l = (o = (a = e == null ? void 0 : e.album) == null ? void 0 : a.images) == null ? void 0 : o[0]) == null ? void 0 : l.url) ?? null, r = ((n = e == null ? void 0 : e.artists) == null ? void 0 : n.map((u) => u.name).join(", ")) ?? "";
+    this._config.height;
+    const i = this._playbackState, t = i == null ? void 0 : i.item, e = ((o = (a = (r = t == null ? void 0 : t.album) == null ? void 0 : r.images) == null ? void 0 : a[0]) == null ? void 0 : o.url) ?? null, s = ((l = t == null ? void 0 : t.artists) == null ? void 0 : l.map((n) => n.name).join(", ")) ?? "";
     return h`
-      <ha-card style="height: ${i}px; overflow: hidden;">
+      <ha-card style="overflow: hidden;">
         <div class="card-content">
           ${this._error ? h`
                 <div class="error-state">
@@ -2163,16 +2206,18 @@ let x = class extends E {
                       .initialAlbum=${this._pendingAlbumDrill}
                       .hass=${this._hass}
                       .sonosCoordinator=${this._sonosCoordinator()}
+                      .artworkUrl=${e}
+                      .isPlaying=${(i == null ? void 0 : i.is_playing) ?? !1}
                       @playback-changed=${this._onPlaybackChanged}
                       @show-now-playing=${() => {
       this._view = "now-playing", this._pendingAlbumDrill = null;
     }}
                       @mini-control=${this._onMiniControl}
                     >
-                      ${s ? h`<img slot="mini-art" src=${s} alt="" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:4px" />` : p}
+                      ${e ? h`<img slot="mini-art" src=${e} alt="" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:4px" />` : p}
                       <span slot="mini-title" style="display:flex;flex-direction:column">
-                        <span style="font-size:12px;font-weight:500;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${(e == null ? void 0 : e.name) ?? "Not playing"}</span>
-                        <span style="font-size:11px;color:rgba(255,255,255,0.45)">${r}</span>
+                        <span style="font-size:12px;font-weight:500;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${(t == null ? void 0 : t.name) ?? "Not playing"}</span>
+                        <span style="font-size:11px;color:rgba(255,255,255,0.45)">${s}</span>
                       </span>
                     </spotify-browse-panel>
                   </div>
@@ -2188,6 +2233,7 @@ x.styles = et`
     ha-card {
       overflow: hidden;
       background: #0a0a0a;
+      padding: 0 !important;
     }
 
     .card-content {
@@ -2195,6 +2241,7 @@ x.styles = et`
       flex-direction: column;
       height: var(--spotify-card-height, 500px);
       overflow: hidden;
+      padding: 0;
     }
 
     .panel {
@@ -2223,22 +2270,22 @@ x.styles = et`
     @keyframes spin { to { transform: rotate(360deg); } }
   `;
 O([
-  _()
+  f()
 ], x.prototype, "_config", 2);
 O([
-  _()
+  f()
 ], x.prototype, "_playbackState", 2);
 O([
-  _()
+  f()
 ], x.prototype, "_progressMs", 2);
 O([
-  _()
+  f()
 ], x.prototype, "_view", 2);
 O([
-  _()
+  f()
 ], x.prototype, "_error", 2);
 O([
-  _()
+  f()
 ], x.prototype, "_pendingAlbumDrill", 2);
 x = O([
   rt("lovelace-spotify-browser")

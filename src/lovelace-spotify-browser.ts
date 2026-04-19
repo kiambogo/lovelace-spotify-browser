@@ -33,6 +33,7 @@ export class SpotifyBrowserCard extends LitElement {
   private _progressInterval: ReturnType<typeof setInterval> | null = null;
   private _progressBaseMs = 0;
   private _progressBaseTime = 0;
+  private _progressTrackId = '';
 
   static styles = css`
     :host { display: block; }
@@ -40,6 +41,7 @@ export class SpotifyBrowserCard extends LitElement {
     ha-card {
       overflow: hidden;
       background: #0a0a0a;
+      padding: 0 !important;
     }
 
     .card-content {
@@ -47,6 +49,7 @@ export class SpotifyBrowserCard extends LitElement {
       flex-direction: column;
       height: var(--spotify-card-height, 500px);
       overflow: hidden;
+      padding: 0;
     }
 
     .panel {
@@ -147,9 +150,17 @@ export class SpotifyBrowserCard extends LitElement {
         const fallback = this._sonosFallbackState();
         this._playbackState = fallback ?? null;
       }
-      this._progressBaseMs = this._playbackState?.progress_ms ?? 0;
-      this._progressBaseTime = Date.now();
-      this._progressMs = this._progressBaseMs;
+      const newTrackId = this._playbackState?.item?.id ?? this._playbackState?.item?.name ?? '';
+      const newProgressMs = this._playbackState?.progress_ms ?? 0;
+      const trackChanged = newTrackId !== this._progressTrackId;
+      // Only re-anchor progress when the track changes or a seek moved us more than 3s from our estimate
+      const drift = Math.abs(newProgressMs - this._progressMs);
+      if (trackChanged || drift > 3000) {
+        this._progressBaseMs = newProgressMs;
+        this._progressBaseTime = Date.now();
+        this._progressMs = newProgressMs;
+        this._progressTrackId = newTrackId;
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('token_expired') || msg.includes('401')) {
@@ -272,7 +283,7 @@ export class SpotifyBrowserCard extends LitElement {
     const artistNames = track?.artists?.map(a => a.name).join(', ') ?? '';
 
     return html`
-      <ha-card style="height: ${height}px; overflow: hidden;">
+      <ha-card style="overflow: hidden;">
         <div class="card-content">
           ${this._error
             ? html`
@@ -304,6 +315,8 @@ export class SpotifyBrowserCard extends LitElement {
                       .initialAlbum=${this._pendingAlbumDrill}
                       .hass=${this._hass}
                       .sonosCoordinator=${this._sonosCoordinator()}
+                      .artworkUrl=${imageUrl}
+                      .isPlaying=${pb?.is_playing ?? false}
                       @playback-changed=${this._onPlaybackChanged}
                       @show-now-playing=${() => { this._view = 'now-playing'; this._pendingAlbumDrill = null; }}
                       @mini-control=${this._onMiniControl}

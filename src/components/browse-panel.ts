@@ -19,6 +19,8 @@ export class BrowsePanel extends LitElement {
   @property({ attribute: false }) initialAlbum: SpotifyApi.Album | null = null;
   @property({ attribute: false }) hass: HomeAssistant | null = null;
   @property({ attribute: false }) sonosCoordinator: string | null = null;
+  @property({ attribute: false }) artworkUrl: string | null = null;
+  @property({ attribute: false }) isPlaying = false;
 
   @state() private _activeTab: BrowseTab = 'playlists';
   @state() private _playlists: SpotifyApi.Playlist[] = [];
@@ -324,16 +326,38 @@ export class BrowsePanel extends LitElement {
     /* ── Mini now-playing bar ── */
     .mini-bar {
       border-top: 2px solid #1DB954;
-      padding: 12px 14px 14px;
+      padding: 10px 14px 10px;
+      min-height: 60px;
+      box-sizing: border-box;
       display: flex;
       align-items: center;
       gap: 12px;
       background: rgba(0,0,0,0.6);
       cursor: pointer;
       flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
       transition: background 0.15s;
     }
-    .mini-bar:hover { background: rgba(29,185,84,0.06); }
+    .mini-bar-bg {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      filter: blur(30px) saturate(2) brightness(0.2);
+      transform: scale(1.4);
+      pointer-events: none;
+      transition: background-image 0.6s ease;
+    }
+    .mini-bar-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+    }
+    .mini-bar:hover .mini-bar-bg { filter: blur(30px) saturate(2) brightness(0.28); }
     .mini-art {
       width: 46px;
       height: 46px;
@@ -361,11 +385,18 @@ export class BrowsePanel extends LitElement {
       transition: color 0.15s, background 0.15s;
     }
     .mini-btn:hover { color: #fff; background: rgba(255,255,255,0.07); }
+    .mini-btn.skip {
+      width: 34px;
+      height: 34px;
+      padding: 6px;
+      color: rgba(255,255,255,0.7);
+    }
+    .mini-btn.skip:hover { color: #fff; }
     .mini-btn.play {
       background: #1DB954;
       color: #000;
-      width: 28px;
-      height: 28px;
+      width: 32px;
+      height: 32px;
     }
     .mini-btn.play:hover { background: #1ed760; }
 
@@ -925,19 +956,21 @@ export class BrowsePanel extends LitElement {
   }
 
   private _renderMiniBar() {
-    // Mini bar is rendered by the parent — emit event to go back to now-playing
     return html`
       <div class="mini-bar" @click=${() => this.dispatchEvent(new CustomEvent('show-now-playing', { bubbles: true, composed: true }))}>
-        <div class="mini-art">
-          <slot name="mini-art"></slot>
-        </div>
-        <div class="mini-meta">
-          <slot name="mini-title"></slot>
-        </div>
-        <div class="mini-controls">
-          <button class="mini-btn" @click=${(e: Event) => { e.stopPropagation(); this._emitControl('prev'); }}>${svgPrev}</button>
-          <button class="mini-btn play" @click=${(e: Event) => { e.stopPropagation(); this._emitControl('play-pause'); }}>${svgPlaySmall}</button>
-          <button class="mini-btn" @click=${(e: Event) => { e.stopPropagation(); this._emitControl('next'); }}>${svgNext}</button>
+        ${this.artworkUrl ? html`<div class="mini-bar-bg" style="background-image:url('${this.artworkUrl}')"></div>` : nothing}
+        <div class="mini-bar-content">
+          <div class="mini-art">
+            <slot name="mini-art"></slot>
+          </div>
+          <div class="mini-meta">
+            <slot name="mini-title"></slot>
+          </div>
+          <div class="mini-controls">
+            <button class="mini-btn skip" @click=${(e: Event) => { e.stopPropagation(); this._emitControl('prev'); }}>${svgPrev}</button>
+            <button class="mini-btn play" @click=${(e: Event) => { e.stopPropagation(); this._emitControl('play-pause'); }}>${this.isPlaying ? svgPauseSmall : svgPlaySmall}</button>
+            <button class="mini-btn skip" @click=${(e: Event) => { e.stopPropagation(); this._emitControl('next'); }}>${svgNext}</button>
+          </div>
         </div>
       </div>
     `;

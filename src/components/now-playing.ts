@@ -22,7 +22,9 @@ export class NowPlayingPanel extends LitElement {
 
   static styles = css`
     :host {
-      display: block;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
       position: relative;
       background: #0a0a0a;
       color: #fff;
@@ -47,8 +49,11 @@ export class NowPlayingPanel extends LitElement {
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 20px 20px 16px;
+      justify-content: space-between;
+      flex: 1;
+      padding: 20px 20px 24px;
       gap: 0;
+      box-sizing: border-box;
     }
 
     /* Header row */
