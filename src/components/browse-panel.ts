@@ -21,6 +21,7 @@ export class BrowsePanel extends LitElement {
   @state() private _searchResults: { tracks: SpotifyApi.Track[]; playlists: SpotifyApi.Playlist[] } = { tracks: [], playlists: [] };
   @state() private _searchQuery = '';
   @state() private _loading = false;
+  @state() private _searchLoading = false;
   @state() private _error = '';
   @state() private _drill: DrillTarget | null = null;
   @state() private _drillAlbumTracks: SpotifyApi.AlbumTrack[] = [];
@@ -431,7 +432,7 @@ export class BrowsePanel extends LitElement {
 
   private async _doSearch(query: string) {
     if (!this.api) return;
-    this._loading = true;
+    this._searchLoading = true;
     this._error = '';
     try {
       const resp = await this.api.search(query);
@@ -442,7 +443,7 @@ export class BrowsePanel extends LitElement {
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Search failed';
     } finally {
-      this._loading = false;
+      this._searchLoading = false;
     }
   }
 
@@ -684,9 +685,9 @@ export class BrowsePanel extends LitElement {
           />
         </div>
       </div>
-      ${this._loading ? this._renderLoading() : nothing}
+      ${this._searchLoading ? this._renderLoading() : nothing}
       ${this._error ? html`<div class="error">${this._error}</div>` : nothing}
-      ${!this._loading && this._searchQuery && !hasResults
+      ${!this._searchLoading && this._searchQuery && !hasResults
         ? html`<div class="empty">No results for "${this._searchQuery}"</div>`
         : nothing}
       ${this._searchResults.tracks.length ? html`
@@ -696,11 +697,11 @@ export class BrowsePanel extends LitElement {
       ${this._searchResults.playlists.length ? html`
         <div class="search-section-label">Playlists</div>
         ${this._searchResults.playlists.map(p => html`
-          <div class="item" @click=${() => this._playPlaylist(p)}>
+          <div class="item" @click=${() => this._openPlaylistDrill(p)}>
             ${this._thumb(p.images, true)}
             <div class="item-info">
               <div class="item-name">${p.name}</div>
-              <div class="item-sub">${p.tracks?.total ?? 0} songs</div>
+              <div class="item-sub">${p.owner?.display_name ?? ''}</div>
             </div>
             <button class="item-play" @click=${(e: Event) => { e.stopPropagation(); this._playPlaylist(p); }}>
               ${svgPlaySmall}

@@ -49,7 +49,6 @@ export class SpotifyApi {
   async getPlaylistTracks(playlistId: string) {
     return this.request<SpotifyApi.PlaylistTracksResponse>('GET', `/playlists/${playlistId}/tracks`, undefined, {
       limit: '50',
-      fields: 'items(track(id,name,uri,duration_ms,popularity,artists,album))',
     });
   }
 
