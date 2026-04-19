@@ -87,6 +87,11 @@ export class SpotifyBrowserCard extends LitElement {
     } else {
       this._api.hass = hass;
     }
+    // Keep fallback state live as HA pushes Sonos state updates
+    if (!this._playbackState || !(this._playbackState as any)._fromSpotify) {
+      const fallback = this._sonosFallbackState();
+      if (fallback) this._playbackState = fallback;
+    }
   }
 
   static getConfigElement(): HTMLElement {
@@ -138,7 +143,14 @@ export class SpotifyBrowserCard extends LitElement {
       this._error = '';
       const raw = await this._api.getCurrentPlayback();
       // 204 No Content comes back as {} — treat as no active session
-      this._playbackState = (raw && (raw as any).item) ? raw : null;
+      let state: SpotifyApi.PlaybackState | null = (raw && (raw as any).item) ? raw : null;
+      if (state) {
+        (state as any)._fromSpotify = true;
+      } else {
+        // Fallback: synthesize state from Sonos HA entity when Spotify API is blind
+        state = this._sonosFallbackState();
+      }
+      this._playbackState = state;
       this._progressBaseMs = this._playbackState?.progress_ms ?? 0;
       this._progressBaseTime = Date.now();
       this._progressMs = this._progressBaseMs;
@@ -150,6 +162,38 @@ export class SpotifyBrowserCard extends LitElement {
         this._error = 'Spotify integration not configured.';
       }
     }
+  }
+
+  private _sonosFallbackState(): SpotifyApi.PlaybackState | null {
+    const coordinator = this._sonosCoordinator();
+    if (!coordinator || !this._hass) return null;
+    const entity = this._hass.states[coordinator];
+    if (!entity || !['playing', 'paused'].includes(entity.state)) return null;
+    const attr = entity.attributes as any;
+    const title = attr.media_title;
+    const artist = attr.media_artist;
+    const duration = attr.media_duration ? Math.round(attr.media_duration * 1000) : 0;
+    const position = attr.media_position ? Math.round(attr.media_position * 1000) : 0;
+    const imageUrl = attr.entity_picture
+      ? (attr.entity_picture.startsWith('http') ? attr.entity_picture : `http://192.168.1.11:8123${attr.entity_picture}`)
+      : null;
+    if (!title) return null;
+    return {
+      is_playing: entity.state === 'playing',
+      progress_ms: position,
+      item: {
+        id: '',
+        name: title,
+        uri: '',
+        duration_ms: duration,
+        artists: artist ? [{ id: '', name: artist, uri: '' }] : [],
+        album: { id: '', name: '', uri: '', images: imageUrl ? [{ url: imageUrl, width: 300, height: 300 }] : [], artists: [] },
+      },
+      device: { id: '', name: coordinator, type: 'Speaker', is_active: true, volume_percent: attr.volume_level ? Math.round(attr.volume_level * 100) : 50 },
+      shuffle_state: attr.shuffle ?? false,
+      repeat_state: attr.repeat ?? 'off',
+      context: null,
+    };
   }
 
   private _onPlaybackChanged() {
