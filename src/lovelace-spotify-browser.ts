@@ -22,6 +22,7 @@ const SONOS_ENTITIES = [
 export class SpotifyBrowserCard extends LitElement {
   @state() private _config: SpotifyBrowserCardConfig | null = null;
   @state() private _playbackState: SpotifyApi.PlaybackState | null = null;
+  @state() private _progressMs = 0;
   @state() private _view: 'now-playing' | 'browse' = 'now-playing';
   @state() private _error = '';
   @state() private _pendingAlbumDrill: SpotifyApi.Album | null = null;
@@ -29,6 +30,9 @@ export class SpotifyBrowserCard extends LitElement {
   private _hass: HomeAssistant | null = null;
   private _api: SpotifyApi | null = null;
   private _pollInterval: ReturnType<typeof setInterval> | null = null;
+  private _progressInterval: ReturnType<typeof setInterval> | null = null;
+  private _progressBaseMs = 0;
+  private _progressBaseTime = 0;
 
   static styles = css`
     :host { display: block; }
@@ -108,12 +112,23 @@ export class SpotifyBrowserCard extends LitElement {
   private _startPolling() {
     this._fetchState();
     this._pollInterval = setInterval(() => this._fetchState(), 5000);
+    this._progressInterval = setInterval(() => {
+      if (this._playbackState?.is_playing) {
+        const elapsed = Date.now() - this._progressBaseTime;
+        const duration = this._playbackState.item?.duration_ms ?? 0;
+        this._progressMs = Math.min(this._progressBaseMs + elapsed, duration);
+      }
+    }, 1000);
   }
 
   private _stopPolling() {
     if (this._pollInterval !== null) {
       clearInterval(this._pollInterval);
       this._pollInterval = null;
+    }
+    if (this._progressInterval !== null) {
+      clearInterval(this._progressInterval);
+      this._progressInterval = null;
     }
   }
 
@@ -122,6 +137,9 @@ export class SpotifyBrowserCard extends LitElement {
     try {
       this._error = '';
       this._playbackState = await this._api.getCurrentPlayback();
+      this._progressBaseMs = this._playbackState?.progress_ms ?? 0;
+      this._progressBaseTime = Date.now();
+      this._progressMs = this._progressBaseMs;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('token_expired') || msg.includes('401')) {
@@ -224,6 +242,7 @@ export class SpotifyBrowserCard extends LitElement {
                     <spotify-now-playing
                       .api=${this._api}
                       .playbackState=${this._playbackState}
+                      .progressMs=${this._progressMs}
                       .hass=${this._hass}
                       .sonosCoordinator=${this._sonosCoordinator()}
                       @playback-changed=${this._onPlaybackChanged}
