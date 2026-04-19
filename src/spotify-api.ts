@@ -52,6 +52,13 @@ export class SpotifyApi {
     });
   }
 
+  async getSavedTracks(offset = 0) {
+    return this.request<SpotifyApi.SavedTracksResponse>('GET', '/me/tracks', undefined, {
+      limit: '50',
+      offset: String(offset),
+    });
+  }
+
   async search(query: string) {
     return this.request<SpotifyApi.SearchResponse>('GET', '/search', undefined, {
       q: query,
@@ -170,6 +177,10 @@ export namespace SpotifyApi {
   }
   export interface PlaylistTracksResponse {
     items: Array<{ track?: Track | null; item?: Track | null }>;
+    total: number;
+  }
+  export interface SavedTracksResponse {
+    items: Array<{ track: Track; added_at: string }>;
     total: number;
   }
   export interface AlbumTrack {

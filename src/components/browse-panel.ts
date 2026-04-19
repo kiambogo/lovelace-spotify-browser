@@ -193,6 +193,9 @@ export class BrowsePanel extends LitElement {
       font-size: 18px;
       flex-shrink: 0;
     }
+    .item-thumb-placeholder.liked {
+      background: rgba(29,185,84,0.15);
+    }
 
     .item-info { flex: 1; min-width: 0; }
     .item-name {
@@ -395,10 +398,17 @@ export class BrowsePanel extends LitElement {
     this._error = '';
     try {
       if (!this.api) return;
-      const resp = await this.api.getPlaylistTracks(playlist.id);
-      this._drillPlaylistTracks = (resp.items ?? [])
-        .map(i => i.item ?? i.track)
-        .filter((t): t is SpotifyApi.Track => t != null && !!t.uri);
+      if (playlist.uri === 'spotify:collection') {
+        const resp = await this.api.getSavedTracks();
+        this._drillPlaylistTracks = (resp.items ?? [])
+          .map(i => i.track)
+          .filter((t): t is SpotifyApi.Track => t != null && !!t.uri);
+      } else {
+        const resp = await this.api.getPlaylistTracks(playlist.id);
+        this._drillPlaylistTracks = (resp.items ?? [])
+          .map(i => i.item ?? i.track)
+          .filter((t): t is SpotifyApi.Track => t != null && !!t.uri);
+      }
     } catch (e: unknown) {
       this._error = _errMsg(e);
     } finally {
@@ -412,8 +422,20 @@ export class BrowsePanel extends LitElement {
     this._error = '';
     try {
       if (tab === 'playlists') {
-        const resp = await this.api.getPlaylists();
-        this._playlists = (resp.items ?? []).filter((p): p is SpotifyApi.Playlist => p != null && p.uri != null);
+        const [playlistsResp, savedResp] = await Promise.all([
+          this.api.getPlaylists(),
+          this.api.getSavedTracks(),
+        ]);
+        const likedSongs: SpotifyApi.Playlist = {
+          id: 'collection',
+          name: 'Liked Songs',
+          uri: 'spotify:collection',
+          images: null,
+          tracks: { total: savedResp.total },
+          owner: null,
+        };
+        const fetched = (playlistsResp.items ?? []).filter((p): p is SpotifyApi.Playlist => p != null && p.uri != null);
+        this._playlists = [likedSongs, ...fetched];
       } else if (tab === 'recently-played') {
         const resp = await this.api.getRecentlyPlayed();
         this._recentTracks = (resp.items ?? []).map((i: any) => i.track).filter((t: any) => t && t.uri);
@@ -557,11 +579,11 @@ export class BrowsePanel extends LitElement {
 
   // ── Rendering helpers ───────────────────────────────────────────────────
 
-  private _thumb(images: { url: string }[] | null | undefined, round = false) {
+  private _thumb(images: { url: string }[] | null | undefined, round = false, placeholder?: unknown, placeholderClass = '') {
     const url = images?.[0]?.url;
     return url
       ? html`<img class="item-thumb ${round ? 'round' : ''}" src=${url} alt="" />`
-      : html`<div class="item-thumb-placeholder">🎵</div>`;
+      : html`<div class="item-thumb-placeholder ${placeholderClass}">${placeholder ?? '🎵'}</div>`;
   }
 
   private _renderLoading() {
@@ -656,18 +678,24 @@ export class BrowsePanel extends LitElement {
     if (this._error) return html`<div class="error">${this._error}</div>`;
     if (!this._playlists.length) return html`<div class="empty">No playlists found</div>`;
 
-    return this._playlists.map(p => html`
-      <div class="item" @click=${() => this._openPlaylistDrill(p)}>
-        ${this._thumb(p.images, true)}
-        <div class="item-info">
-          <div class="item-name">${p.name}</div>
-          <div class="item-sub">${p.owner?.display_name ?? ''}</div>
+    return this._playlists.map(p => {
+      const isLiked = p.uri === 'spotify:collection';
+      const subText = isLiked
+        ? (p.tracks?.total != null ? `${p.tracks.total} liked songs` : 'Your liked songs')
+        : (p.owner?.display_name ?? '');
+      return html`
+        <div class="item" @click=${() => this._openPlaylistDrill(p)}>
+          ${this._thumb(p.images, !isLiked, isLiked ? svgHeart : undefined, isLiked ? 'liked' : '')}
+          <div class="item-info">
+            <div class="item-name">${p.name}</div>
+            <div class="item-sub">${subText}</div>
+          </div>
+          <button class="item-play" @click=${(e: Event) => { e.stopPropagation(); this._playPlaylist(p); }}>
+            ${svgPlaySmall}
+          </button>
         </div>
-        <button class="item-play" @click=${(e: Event) => { e.stopPropagation(); this._playPlaylist(p); }}>
-          ${svgPlaySmall}
-        </button>
-      </div>
-    `);
+      `;
+    });
   }
 
   private _renderTrackList(tracks: SpotifyApi.Track[], nowPlayingUri?: string) {
@@ -821,6 +849,7 @@ const svgNext = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" he
 const svgBack = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>`;
 const svgSearch = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>`;
 const svgShuffleSmall = svg`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M10.59 9.17 5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>`;
+const svgHeart = svg`<svg viewBox="0 0 24 24" fill="#1DB954" width="20" height="20"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
 
 void nothing;
 void svgPauseSmall; // referenced in mini-bar conditionally
