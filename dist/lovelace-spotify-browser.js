@@ -45,7 +45,7 @@ const wt = (i) => new mt(typeof i == "string" ? i : i + "", void 0, tt), et = (i
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const { is: At, defineProperty: St, getOwnPropertyDescriptor: Pt, getOwnPropertyNames: Tt, getOwnPropertySymbols: Ct, getPrototypeOf: Et } = Object, A = globalThis, nt = A.trustedTypes, Mt = nt ? nt.emptyScript : "", Y = A.reactiveElementPolyfillSupport, B = (i, t) => i, G = { toAttribute(i, t) {
+const { is: At, defineProperty: St, getOwnPropertyDescriptor: Tt, getOwnPropertyNames: Pt, getOwnPropertySymbols: Ct, getPrototypeOf: Et } = Object, A = globalThis, nt = A.trustedTypes, Mt = nt ? nt.emptyScript : "", Y = A.reactiveElementPolyfillSupport, B = (i, t) => i, G = { toAttribute(i, t) {
   switch (t) {
     case Boolean:
       i = i ? Mt : null;
@@ -89,7 +89,7 @@ let O = class extends HTMLElement {
     }
   }
   static getPropertyDescriptor(t, e, s) {
-    const { get: r, set: a } = Pt(this.prototype, t) ?? { get() {
+    const { get: r, set: a } = Tt(this.prototype, t) ?? { get() {
       return this[e];
     }, set(o) {
       this[e] = o;
@@ -110,7 +110,7 @@ let O = class extends HTMLElement {
   static finalize() {
     if (this.hasOwnProperty(B("finalized"))) return;
     if (this.finalized = !0, this._$Ei(), this.hasOwnProperty(B("properties"))) {
-      const e = this.properties, s = [...Tt(e), ...Ct(e)];
+      const e = this.properties, s = [...Pt(e), ...Ct(e)];
       for (const r of s) this.createProperty(r, e[r]);
     }
     const t = this[Symbol.metadata];
@@ -286,7 +286,7 @@ O.elementStyles = [], O.shadowRootOptions = { mode: "open" }, O[B("elementProper
  */
 const L = globalThis, ht = (i) => i, W = L.trustedTypes, ct = W ? W.createPolicy("lit-html", { createHTML: (i) => i }) : void 0, bt = "$lit$", k = `lit$${Math.random().toFixed(9).slice(2)}$`, vt = "?" + k, zt = `<${vt}>`, M = document, U = () => M.createComment(""), N = (i) => i === null || typeof i != "object" && typeof i != "function", st = Array.isArray, Ot = (i) => st(i) || typeof (i == null ? void 0 : i[Symbol.iterator]) == "function", Z = `[ 	
 \f\r]`, R = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, pt = /-->/g, dt = />/g, S = RegExp(`>|${Z}(?:([^\\s"'>=/]+)(${Z}*=${Z}*(?:[^ 	
-\f\r"'\`<>=]|("|')|))|$)`, "g"), ut = /'/g, ft = /"/g, yt = /^(?:script|style|textarea|title)$/i, $t = (i) => (t, ...e) => ({ _$litType$: i, strings: t, values: e }), h = $t(1), b = $t(2), H = Symbol.for("lit-noChange"), p = Symbol.for("lit-nothing"), _t = /* @__PURE__ */ new WeakMap(), T = M.createTreeWalker(M, 129);
+\f\r"'\`<>=]|("|')|))|$)`, "g"), ut = /'/g, ft = /"/g, yt = /^(?:script|style|textarea|title)$/i, $t = (i) => (t, ...e) => ({ _$litType$: i, strings: t, values: e }), h = $t(1), b = $t(2), H = Symbol.for("lit-noChange"), p = Symbol.for("lit-nothing"), _t = /* @__PURE__ */ new WeakMap(), P = M.createTreeWalker(M, 129);
 function xt(i, t) {
   if (!st(i) || !i.hasOwnProperty("raw")) throw Error("invalid template strings array");
   return ct !== void 0 ? ct.createHTML(t) : t;
@@ -309,11 +309,11 @@ class j {
     this.parts = [];
     let a = 0, o = 0;
     const l = t.length - 1, n = this.parts, [u, c] = Ht(t, e);
-    if (this.el = j.createElement(u, s), T.currentNode = this.el.content, e === 2 || e === 3) {
+    if (this.el = j.createElement(u, s), P.currentNode = this.el.content, e === 2 || e === 3) {
       const d = this.el.content.firstChild;
       d.replaceWith(...d.childNodes);
     }
-    for (; (r = T.nextNode()) !== null && n.length < l; ) {
+    for (; (r = P.nextNode()) !== null && n.length < l; ) {
       if (r.nodeType === 1) {
         if (r.hasAttributes()) for (const d of r.getAttributeNames()) if (d.endsWith(bt)) {
           const g = c[o++], w = r.getAttribute(d).split(k), I = /([.?@])?(.*)/.exec(g);
@@ -323,7 +323,7 @@ class j {
           const d = r.textContent.split(k), g = d.length - 1;
           if (g > 0) {
             r.textContent = W ? W.emptyScript : "";
-            for (let w = 0; w < g; w++) r.append(d[w], U()), T.nextNode(), n.push({ type: 2, index: ++a });
+            for (let w = 0; w < g; w++) r.append(d[w], U()), P.nextNode(), n.push({ type: 2, index: ++a });
             r.append(d[g], U());
           }
         }
@@ -359,16 +359,16 @@ class Dt {
   }
   u(t) {
     const { el: { content: e }, parts: s } = this._$AD, r = ((t == null ? void 0 : t.creationScope) ?? M).importNode(e, !0);
-    T.currentNode = r;
-    let a = T.nextNode(), o = 0, l = 0, n = s[0];
+    P.currentNode = r;
+    let a = P.nextNode(), o = 0, l = 0, n = s[0];
     for (; n !== void 0; ) {
       if (o === n.index) {
         let u;
         n.type === 2 ? u = new q(a, a.nextSibling, this, t) : n.type === 1 ? u = new n.ctor(a, n.name, n.strings, this, t) : n.type === 6 && (u = new Ut(a, this, t)), this._$AV.push(u), n = s[++l];
       }
-      o !== (n == null ? void 0 : n.index) && (a = T.nextNode(), o++);
+      o !== (n == null ? void 0 : n.index) && (a = P.nextNode(), o++);
     }
-    return T.currentNode = M, r;
+    return P.currentNode = M, r;
   }
   p(t) {
     let e = 0;
@@ -1295,7 +1295,7 @@ let _ = class extends E {
           class="drill-action-btn btn-play"
           @click=${() => t ? this._playAlbum(i.album) : this._playPlaylist(i.playlist)}
         >
-          <span class="btn-icon">${P}</span>
+          <span class="btn-icon">${T}</span>
           Play
         </button>
         <button
@@ -1323,7 +1323,7 @@ let _ = class extends E {
               <button class="item-play" @click=${(g) => {
       g.stopPropagation(), this._playAlbumTrack(c.uri);
     }}>
-                ${P}
+                ${T}
               </button>
             </div>
           `) : this._drillPlaylistTracks.map((c) => {
@@ -1338,7 +1338,7 @@ let _ = class extends E {
               <button class="item-play" @click=${(g) => {
         g.stopPropagation(), this._playPlaylistTrack(c);
       }}>
-                ${P}
+                ${T}
               </button>
             </div>
           `;
@@ -1360,7 +1360,7 @@ let _ = class extends E {
         <button class="item-play" @click=${(e) => {
         e.stopPropagation(), this._playPlaylist(i);
       }}>
-          ${P}
+          ${T}
         </button>
       </div>
     `;
@@ -1384,7 +1384,7 @@ let _ = class extends E {
         <button class="item-play" @click=${(r) => {
         r.stopPropagation(), this._playTrack(e);
       }}>
-          ${P}
+          ${T}
         </button>
       </div>
     `;
@@ -1426,7 +1426,7 @@ let _ = class extends E {
             <button class="item-play" @click=${(s) => {
         s.stopPropagation(), this._playPlaylist(t);
       }}>
-              ${P}
+              ${T}
             </button>
           </div>
         `;
@@ -1482,7 +1482,7 @@ let _ = class extends E {
     }}>${ie}</button>
           <button class="mini-btn play" @click=${(i) => {
       i.stopPropagation(), this._emitControl("play-pause");
-    }}>${P}</button>
+    }}>${T}</button>
           <button class="mini-btn" @click=${(i) => {
       i.stopPropagation(), this._emitControl("next");
     }}>${se}</button>
@@ -1865,7 +1865,7 @@ m([
 _ = m([
   rt("spotify-browse-panel")
 ], _);
-const P = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M8 5v14l11-7z"/></svg>`;
+const T = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M8 5v14l11-7z"/></svg>`;
 b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
 const ie = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>`, se = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 4V8zM16 6h2v12h-2z"/></svg>`, re = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>`, ae = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>`, oe = b`<svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%"><path d="M10.59 9.17 5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>`;
 var ne = Object.defineProperty, le = Object.getOwnPropertyDescriptor, z = (i, t, e, s) => {
@@ -1919,14 +1919,16 @@ let x = class extends E {
     var i;
     if (this._api)
       try {
-        this._error = "", this._playbackState = await this._api.getCurrentPlayback(), this._progressBaseMs = ((i = this._playbackState) == null ? void 0 : i.progress_ms) ?? 0, this._progressBaseTime = Date.now(), this._progressMs = this._progressBaseMs;
+        this._error = "";
+        const t = await this._api.getCurrentPlayback();
+        this._playbackState = t && t.item ? t : null, this._progressBaseMs = ((i = this._playbackState) == null ? void 0 : i.progress_ms) ?? 0, this._progressBaseTime = Date.now(), this._progressMs = this._progressBaseMs;
       } catch (t) {
         const e = t instanceof Error ? t.message : String(t);
         e.includes("token_expired") || e.includes("401") ? this._error = "Spotify token expired. Re-authenticate in Home Assistant." : e.includes("no_spotify_entry") && (this._error = "Spotify integration not configured.");
       }
   }
   _onPlaybackChanged() {
-    setTimeout(() => this._fetchState(), 500);
+    setTimeout(() => this._fetchState(), 500), setTimeout(() => this._fetchState(), 1500), setTimeout(() => this._fetchState(), 3e3);
   }
   // Returns the relevant Sonos entity for transport commands.
   // Prefers the active coordinator (playing), falls back to any paused Sonos speaker.

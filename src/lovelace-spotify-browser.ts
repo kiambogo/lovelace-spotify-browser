@@ -136,7 +136,9 @@ export class SpotifyBrowserCard extends LitElement {
     if (!this._api) return;
     try {
       this._error = '';
-      this._playbackState = await this._api.getCurrentPlayback();
+      const raw = await this._api.getCurrentPlayback();
+      // 204 No Content comes back as {} — treat as no active session
+      this._playbackState = (raw && (raw as any).item) ? raw : null;
       this._progressBaseMs = this._playbackState?.progress_ms ?? 0;
       this._progressBaseTime = Date.now();
       this._progressMs = this._progressBaseMs;
@@ -151,7 +153,10 @@ export class SpotifyBrowserCard extends LitElement {
   }
 
   private _onPlaybackChanged() {
+    // Spotify state API can lag after triggering playback — retry a few times
     setTimeout(() => this._fetchState(), 500);
+    setTimeout(() => this._fetchState(), 1500);
+    setTimeout(() => this._fetchState(), 3000);
   }
 
   // Returns the relevant Sonos entity for transport commands.
