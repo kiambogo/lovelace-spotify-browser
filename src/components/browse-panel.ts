@@ -396,7 +396,7 @@ export class BrowsePanel extends LitElement {
       if (!this.api) return;
       const resp = await this.api.getPlaylistTracks(playlist.id);
       this._drillPlaylistTracks = (resp.items ?? [])
-        .map(i => i.track)
+        .map(i => i.item ?? i.track)
         .filter((t): t is SpotifyApi.Track => t != null && !!t.uri);
     } catch (e: unknown) {
       this._error = _errMsg(e);

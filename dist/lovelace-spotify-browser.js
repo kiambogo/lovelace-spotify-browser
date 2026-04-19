@@ -633,9 +633,8 @@ class It {
     return this.request("GET", `/albums/${t}/tracks`, void 0, { limit: "50" });
   }
   async getPlaylistTracks(t) {
-    return this.request("GET", `/playlists/${t}/tracks`, void 0, {
-      limit: "50",
-      fields: "items(track(id,name,uri,duration_ms,artists,album(id,name,uri,images))),total"
+    return this.request("GET", `/playlists/${t}/items`, void 0, {
+      limit: "50"
     });
   }
   async search(t) {
@@ -1133,7 +1132,7 @@ let _ = class extends E {
     try {
       if (!this.api) return;
       const t = await this.api.getPlaylistTracks(i.id);
-      this._drillPlaylistTracks = (t.items ?? []).map((e) => e.track).filter((e) => e != null && !!e.uri);
+      this._drillPlaylistTracks = (t.items ?? []).map((e) => e.item ?? e.track).filter((e) => e != null && !!e.uri);
     } catch (t) {
       this._error = K(t);
     } finally {
