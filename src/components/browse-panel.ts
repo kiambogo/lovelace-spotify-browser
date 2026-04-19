@@ -34,6 +34,7 @@ export class BrowsePanel extends LitElement {
     :host {
       display: flex;
       flex-direction: column;
+      flex: 1;
       min-height: 0;
       overflow: hidden;
       background: #0a0a0a;
