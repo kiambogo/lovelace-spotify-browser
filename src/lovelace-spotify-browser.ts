@@ -146,11 +146,12 @@ export class SpotifyBrowserCard extends LitElement {
       let state: SpotifyApi.PlaybackState | null = (raw && (raw as any).item) ? raw : null;
       if (state) {
         (state as any)._fromSpotify = true;
+        this._playbackState = state;
       } else {
-        // Fallback: synthesize state from Sonos HA entity when Spotify API is blind
-        state = this._sonosFallbackState();
+        // Don't overwrite a live Sonos fallback with null — only clear if we get a real Spotify response
+        const fallback = this._sonosFallbackState();
+        this._playbackState = fallback ?? null;
       }
-      this._playbackState = state;
       this._progressBaseMs = this._playbackState?.progress_ms ?? 0;
       this._progressBaseTime = Date.now();
       this._progressMs = this._progressBaseMs;

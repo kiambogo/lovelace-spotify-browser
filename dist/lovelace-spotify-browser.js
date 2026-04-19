@@ -1927,7 +1927,13 @@ let x = class extends E {
         this._error = "";
         const t = await this._api.getCurrentPlayback();
         let e = t && t.item ? t : null;
-        e ? e._fromSpotify = !0 : e = this._sonosFallbackState(), this._playbackState = e, this._progressBaseMs = ((i = this._playbackState) == null ? void 0 : i.progress_ms) ?? 0, this._progressBaseTime = Date.now(), this._progressMs = this._progressBaseMs;
+        if (e)
+          e._fromSpotify = !0, this._playbackState = e;
+        else {
+          const s = this._sonosFallbackState();
+          this._playbackState = s ?? null;
+        }
+        this._progressBaseMs = ((i = this._playbackState) == null ? void 0 : i.progress_ms) ?? 0, this._progressBaseTime = Date.now(), this._progressMs = this._progressBaseMs;
       } catch (t) {
         const e = t instanceof Error ? t.message : String(t);
         e.includes("token_expired") || e.includes("401") ? this._error = "Spotify token expired. Re-authenticate in Home Assistant." : e.includes("no_spotify_entry") && (this._error = "Spotify integration not configured.");
